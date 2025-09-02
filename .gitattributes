@@ -1,0 +1,10 @@
+# Detecta archivos de texto y normaliza a LF en el repositorio
+* text=auto
+
+# Binarios (no tocar EOL)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
