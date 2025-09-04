@@ -10,17 +10,17 @@ const TypeAnimation = dynamic(
 
 const HeroSection = () => {
   // El más largo de la lista para reservar ancho/alto del texto animado
-  const LONGEST = "Optimización de rutas";
+  const LONGEST = "Monitoreo en tiempo real";
 
   return (
-    <section className="relative overflow-hidden bg-white">
+    <section className="relative isolate overflow-hidden bg-white">
       {/* Fondo sutil con formas azules */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-blue-100 blur-3xl opacity-60" />
-        <div className="absolute -bottom-20 -left-20 h-80 w-80 rounded-full bg-blue-50 blur-3xl opacity-70" />
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-blue-100/60 blur-3xl" />
+        <div className="absolute -bottom-20 -left-20 h-80 w-80 rounded-full bg-blue-50/70 blur-3xl" />
       </div>
 
-      <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-12 lg:px-8">
+      <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-12 lg:px-8 relative z-10">
         {/* Columna de texto */}
         <div className="col-span-7 order-2 lg:order-1">
           <span className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-medium text-black">
@@ -38,7 +38,7 @@ const HeroSection = () => {
           </h1>
 
           {/* Texto animado: claims de valor */}
-          <div className="relative inline-block w-[22ch] align-top">
+          <div className="relative inline-block w-[28ch] align-top">
             <span className="invisible">{LONGEST}</span>
             <span className="absolute inset-0 bg-clip-text text-lg font-semibold text-blue-700">
               <TypeAnimation
@@ -55,7 +55,7 @@ const HeroSection = () => {
             </span>
           </div>
 
-          <p className="mt-4 text-base text-black/70 sm:text-lg lg:text-xl">
+          <p className="mt-4 text-base text-black sm:text-lg lg:text-xl">
             Plataforma web para empresas salmoneras: planifica servicios, visualiza la
             flota en vivo, controla asistencia y mide desempeño entre{" "}
             <strong>centros de cultivo</strong> y <strong>plantas de proceso</strong>.
@@ -78,7 +78,7 @@ const HeroSection = () => {
           </div>
 
           {/* Badges de confianza */}
-          <div className="mt-6 flex flex-wrap items-center gap-3 text-xs text-black/60">
+          <div className="mt-6 flex flex-wrap items-center gap-3 text-xs text-black/70">
             <span className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1">WebSocket en vivo</span>
             <span className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1">Reportes y KPIs</span>
             <span className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1">Privacidad y RLS por empresa</span>
