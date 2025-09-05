@@ -7,11 +7,17 @@ export async function POST(req) {
   const payload = { email, role, tenant, iat: Date.now() };
   const cookie = Buffer.from(JSON.stringify(payload), "utf-8").toString("base64");
 
-  const res = NextResponse.redirect(new URL("/dashboard", req.url));
+  // Normaliza el rol y selecciona destino
+  const r = String(role).trim().toLowerCase();
+  const dest = r === "chofer" ? "/driver" : "/dashboard";
+
+  const res = NextResponse.redirect(new URL(dest, req.url)); // 307 por defecto
   res.cookies.set("tm_auth", cookie, {
     path: "/",
-    httpOnly: false, // demo; en prod: true
+    // En producción: httpOnly: true. En demo puedes dejarlo en false si lo necesitas en el cliente.
+    httpOnly: false,
     sameSite: "Lax",
   });
+
   return res;
 }
