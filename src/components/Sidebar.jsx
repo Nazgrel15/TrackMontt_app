@@ -19,7 +19,6 @@ const navByRole = {
     { href: "/reports", label: "Reportes" },
   ],
   Chofer: [
-    { href: "/dashboard", label: "Dashboard" },
     { href: "/driver", label: "Mi servicio" },
   ],
 };
