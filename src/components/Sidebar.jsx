@@ -12,6 +12,7 @@ const navByRole = {
     { href: "/asistencia", label: "Asistencia" },
     { href: "/alerts", label: "Alertas" },
     { href: "/reports", label: "Reportes" },
+    { href: "/alerts", label: "Alertas" },
     { href: "/admin", label: "Administración" },
     { href: "/admin/fleet", label: "Flota" },
     { href: "/admin/drivers", label: "Choferes" },
@@ -24,6 +25,7 @@ const navByRole = {
     { href: "/alerts", label: "Alertas" },
     { href: "/map", label: "Mapa" },
     { href: "/reports", label: "Reportes" },
+    { href: "/alerts", label: "Alertas" },
     { href: "/perfil", label: "Mi Perfil" },
   ],
   Chofer: [
