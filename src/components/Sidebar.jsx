@@ -19,6 +19,7 @@ const navByRole = {
     { href: "/auditoria", label: "Auditoría" },
     { href: "/admin/parametros", label: "Parámetros" },
     { href: "/admin/trabajadores", label: "Trabajadores" },
+    { href: "/salud", label: "Salud del Sistema" },
     { href: "/perfil", label: "Mi Perfil" },
   ],
   Supervisor: [
