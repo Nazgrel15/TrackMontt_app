@@ -68,3 +68,38 @@ export const auditActions = {
   'create:service': 'Crear Servicio',
   'export:report': 'Exportar Reporte',
 };
+
+
+
+export const mockSaludKPIs = [
+  { 
+    id: "uptime",    
+    label: "Uptime (API)",           
+    value: "99.98%", 
+    trend: "24h",  
+    hint: "Disponibilidad del servicio últimas 24h",
+    status: "ok" // 'ok', 'warn', 'error'
+  },
+  { 
+    id: "latency",   
+    label: "Latencia API (p95)",   
+    value: "120 ms", 
+    trend: "< 700ms", 
+    hint: "Percentil 95 de respuesta del API",
+    status: "ok"
+  },
+  { 
+    id: "errors",   
+    label: "Tasa de Errores (API)",      
+    value: "0.02%", 
+    trend: "última hora", 
+    hint: "Porcentaje de errores 5xx",
+    status: "ok"
+  },
+];
+
+export const mockErroresRecientes = [
+  { id: 'E-001', timestamp: '2025-11-12T14:32:00Z', code: 500, service: 'api/login', message: 'Database connection timeout' },
+  { id: 'E-002', timestamp: '2025-11-12T14:28:00Z', code: 404, service: 'api/fleet/B-999', message: 'Bus not found' },
+  { id: 'E-003', timestamp: '2025-11-12T14:25:00Z', code: 502, service: 'api/ws-gateway', message: 'Bad Gateway' },
+];
