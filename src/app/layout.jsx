@@ -1,4 +1,6 @@
 import "./globals.css";
+import "leaflet/dist/leaflet.css";
+
 
 export const metadata = {
   title: "TrackMontt",
@@ -12,7 +14,7 @@ export default function RootLayout({ children }) {
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
-    <body className="min-h-screen bg-white text-slate-900">
+      <body className="min-h-screen bg-white text-black antialiased">
         {children}
       </body>
     </html>

@@ -9,11 +9,10 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "git": "^0.1.5",
-    "next": "^15.5.2",
-    "node.js": "^0.0.1-security",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "leaflet": "^1.9.4",
+    "next": "15.5.2",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
     "react-leaflet": "^5.0.0",
     "react-type-animation": "^3.2.0"
   },
@@ -22,6 +21,6 @@
     "@tailwindcss/postcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
-    "tailwindcss": "^4.1.17"
+    "tailwindcss": "^4"
   }
 }
