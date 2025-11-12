@@ -42,3 +42,13 @@ export const alertTypes = {
   desvio: "Desvío de Ruta",
   parada_omitida: "Parada Omitida",
 };
+
+
+export const mockAsistencia = [
+  { id: 'AS-001', serviceId: 'S-000', workerName: 'Ana González', workerRut: '11.111.111-1', status: 'Presente', checkIn: '06:58' },
+  { id: 'AS-002', serviceId: 'S-000', workerName: 'Bruno Díaz', workerRut: '22.222.222-2', status: 'Ausente', checkIn: null },
+  { id: 'AS-003', serviceId: 'S-001', workerName: 'Carlos Vera', workerRut: '33.333.333-3', status: 'Presente', checkIn: '07:05' },
+  { id: 'AS-004', serviceId: 'S-001', workerName: 'David Mora', workerRut: '44.444.444-4', status: 'Justificado', checkIn: null },
+];
+
+export const attendanceStatus = ['Presente', 'Ausente', 'Justificado'];
