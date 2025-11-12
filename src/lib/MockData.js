@@ -52,3 +52,19 @@ export const mockAsistencia = [
 ];
 
 export const attendanceStatus = ['Presente', 'Ausente', 'Justificado'];
+
+
+export const mockAuditoria = [
+  { id: 'L-001', timestamp: '2025-11-12T14:30:00Z', user: 'kevin@trackmontt.cl', action: 'login:success', ip: '200.55.120.10', details: 'Inicio de sesión exitoso' },
+  { id: 'L-002', timestamp: '2025-11-12T14:15:00Z', user: 'laura@trackmontt.cl', action: 'update:fleet', ip: '180.20.10.5', details: 'Actualizó bus B-002' },
+  { id: 'L-003', timestamp: '2025-11-12T14:10:00Z', user: 'laura@trackmontt.cl', action: 'create:service', ip: '180.20.10.5', details: 'Creó servicio S-004' },
+  { id: 'L-004', timestamp: '2025-11-12T14:05:00Z', user: 'pedro@trackmontt.cl', action: 'login:success', ip: '190.100.1.30', details: 'Inicio de sesión exitoso' },
+  { id: 'L-005', timestamp: '2025-11-12T13:00:00Z', user: 'kevin@trackmontt.cl', action: 'export:report', ip: '200.55.120.10', details: 'Exportó reporte de puntualidad' },
+];
+
+export const auditActions = {
+  'login:success': 'Inicio de Sesión',
+  'update:fleet': 'Actualizar Flota',
+  'create:service': 'Crear Servicio',
+  'export:report': 'Exportar Reporte',
+};
