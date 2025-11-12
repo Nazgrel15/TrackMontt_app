@@ -26,6 +26,7 @@ const navByRole = {
     { href: "/alerts", label: "Alertas" },
     { href: "/map", label: "Mapa" },
     { href: "/reports", label: "Reportes" },
+    { href: "/asistencia", label: "Asistencia" },
     { href: "/admin/trabajadores", label: "Trabajadores" },
     { href: "/perfil", label: "Mi Perfil" },
   ],
