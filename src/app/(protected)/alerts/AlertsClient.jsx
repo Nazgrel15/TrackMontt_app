@@ -93,7 +93,7 @@ export default function AlertsClient() {
                 
                 {/* AC 2: Estado (Badge) */}
                 <td className="px-4 py-3">
-                  <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClasses[alert.status]}`}>
+                  <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClasses[alert.status]} whitespace-nowrap`}>
                     {alert.status}
                   </span>
                 </td>
