@@ -1,0 +1,28 @@
+{
+  "theme_color": "#0B1220",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "scope": "/",
+  "start_url": "/login",
+  "name": "TrackMontt",
+  "short_name": "TrackMontt",
+  "description": "Monitoreo y optimización de traslados salmoneros.",
+  "icons": [
+
+    {
+      "src": "/images/icons/logo250x250.png",
+      "sizes": "250x250",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/icons/logo375x375.png",
+      "sizes": "375x375",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/icons/logo500x500.png",
+      "sizes": "500x500",
+      "type": "image/png"
+    }
+  ]
+}

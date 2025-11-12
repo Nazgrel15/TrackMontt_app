@@ -91,7 +91,7 @@ const HeroSection = () => {
             {/* “Anillo” decorativo azul */}
             <div className="absolute -inset-4 -z-10 rounded-[2rem] bg-gradient-to-br from-blue-200 to-blue-100 blur-2xl" />
             <Image
-              src="/images/hero-aqua-fleet.png" // reemplaza por tu imagen (flota/acuicultura)
+              src="/images/icons/logoTrackMontt.png" // reemplaza por tu imagen (flota/acuicultura)
               alt="Monitoreo de flota en tiempo real para acuicultura"
               className="absolute left-1/2 top-1/2 h-auto w-[78%] -translate-x-1/2 -translate-y-1/2 select-none"
               width={600}
