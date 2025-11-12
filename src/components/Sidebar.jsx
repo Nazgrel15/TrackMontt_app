@@ -10,6 +10,7 @@ const navByRole = {
     { href: "/planning", label: "Planificación" },
     { href: "/map", label: "Mapa" },
     { href: "/asistencia", label: "Asistencia" },
+    { href: "/alerts", label: "Alertas" },
     { href: "/reports", label: "Reportes" },
     { href: "/admin", label: "Administración" },
     { href: "/admin/fleet", label: "Flota" },
@@ -19,6 +20,7 @@ const navByRole = {
   Supervisor: [
     { href: "/dashboard", label: "Dashboard" },
     { href: "/planning", label: "Planificación" },
+    { href: "/alerts", label: "Alertas" },
     { href: "/map", label: "Mapa" },
     { href: "/reports", label: "Reportes" },
   ],
