@@ -9,21 +9,26 @@ const navByRole = {
     { href: "/dashboard", label: "Dashboard" },
     { href: "/planning", label: "Planificación" },
     { href: "/map", label: "Mapa" },
+    { href: "/asistencia", label: "Asistencia" },
+    { href: "/alerts", label: "Alertas" },
     { href: "/reports", label: "Reportes" },
     { href: "/admin", label: "Administración" },
     { href: "/admin/fleet", label: "Flota" },
     { href: "/admin/drivers", label: "Choferes" },
     { href: "/admin/stops", label: "Paradas" },
-    { href: "/admin/parametros", label: "Parámetros" }
+    { href: "/perfil", label: "Mi Perfil" },
   ],
   Supervisor: [
     { href: "/dashboard", label: "Dashboard" },
     { href: "/planning", label: "Planificación" },
+    { href: "/alerts", label: "Alertas" },
     { href: "/map", label: "Mapa" },
     { href: "/reports", label: "Reportes" },
+    { href: "/perfil", label: "Mi Perfil" },
   ],
   Chofer: [
     { href: "/driver", label: "Mi servicio" },
+    { href: "/perfil", label: "Mi Perfil" },
   ],
 };
 

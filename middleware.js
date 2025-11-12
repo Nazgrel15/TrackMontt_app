@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 
 const AUTH_COOKIE = "tm_auth";
-const PROTECTED = ["/dashboard", "/planning", "/map", "/reports", "/admin", "/driver"];
+const PROTECTED = ["/dashboard", "/planning", "/map", "/reports", "/admin", "/driver", "/perfil"];
 
 // Decodifica el rol desde tm_auth (base64 con JSON { role: "..." })
 function getRoleFromAuthCookie(req) {
