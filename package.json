@@ -9,9 +9,11 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "leaflet": "^1.9.4",
     "next": "15.5.2",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "react-leaflet": "^5.0.0",
     "react-type-animation": "^3.2.0"
   },
   "devDependencies": {
