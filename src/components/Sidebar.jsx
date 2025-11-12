@@ -14,6 +14,7 @@ const navByRole = {
     { href: "/admin/fleet", label: "Flota" },
     { href: "/admin/drivers", label: "Choferes" },
     { href: "/admin/stops", label: "Paradas" },
+    { href: "/admin/parametros", label: "Parámetros" }
   ],
   Supervisor: [
     { href: "/dashboard", label: "Dashboard" },
