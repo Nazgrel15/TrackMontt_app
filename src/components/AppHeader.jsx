@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link"; // 👈 AÑADIDO
 
-export default function AppHeader({ role }) {
+export default function AppHeader({ role, userName }) {
   return (
     <header className="sticky top-0 z-40 border-b bg-white">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -10,7 +10,9 @@ export default function AppHeader({ role }) {
             <span className="font-bold text-blue-700">TM</span>
           </div>
           <span className="font-semibold text-black">TrackMontt</span>
-          <span className="text-sm text-black/60">· {role}</span>
+          <span className="text-sm text-black/60 hidden md:block">
+          Usuario: <b>{userName || role}</b>
+        </span>
         </div>
 
         {/* 👇 SECCIÓN MODIFICADA 👇 */}
