@@ -1,0 +1,199 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Modelo para el "Tenant" (la empresa cliente del SaaS)
+model Empresa {
+  id     String @id @default(cuid())
+  nombre String
+
+  // --- Ticket B13: Parámetros del Sistema ---
+  toleranciaRetraso   Int    @default(15) // (minutos)
+  retencionDatosDias  Int    @default(90) // (días)
+  factorCO2           Float  @default(2.67) // (kg CO2/litro)
+
+  // --- Relaciones: Una empresa tiene muchos... ---
+  usuarios     User[]
+  flota        Bus[]
+  choferes     Chofer[]
+  paradas      Parada[]
+  trabajadores Trabajador[]
+  servicios    Servicio[]
+  // --- Nuevos Modelos ---
+  posicionesGPS LogPosicion[]
+  asistencias   Asistencia[]
+  alertas       Alerta[]
+  incidentes    Incidente[]
+  auditoriaLogs LogAuditoria[]
+}
+
+// Modelo de Usuario (Login) - Ticket B1
+model User {
+  id             String @id @default(cuid())
+  email          String @unique
+  name           String
+  hashedPassword String
+  role           String // "Administrador", "Supervisor", "Chofer"
+
+  empresaId String
+  empresa   Empresa @relation(fields: [empresaId], references: [id])
+
+  auditoriaLogs LogAuditoria[] // Un usuario puede generar muchos logs
+}
+
+// --- Modelos Maestros (Tickets B3, B4, B5, B14) ---
+
+model Bus {
+  id        String   @id @default(cuid())
+  patente   String   @unique
+  capacidad Int
+  proveedor String
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id])
+  servicios Servicio[]
+}
+
+model Chofer {
+  id        String    @id @default(cuid())
+  nombre    String
+  licencia  String
+  contacto  String
+  empresaId String
+  empresa   Empresa   @relation(fields: [empresaId], references: [id])
+  servicios Servicio[]
+  incidentes Incidente[] // Un chofer puede reportar muchos incidentes
+}
+
+model Parada {
+  id        String  @id @default(cuid())
+  nombre    String
+  lat       Float
+  lng       Float
+  empresaId String
+  empresa   Empresa @relation(fields: [empresaId], references: [id])
+}
+
+model Trabajador {
+  id          String       @id @default(cuid())
+  rut         String
+  nombre      String
+  area        String
+  empresaId   String
+  empresa     Empresa      @relation(fields: [empresaId], references: [id])
+  asistencias Asistencia[] // Un trabajador tiene multiples registros de asistencia
+}
+
+// --- Modelos Transaccionales (Tickets B6 en adelante) ---
+
+model Servicio {
+  id       String   @id @default(cuid())
+  fecha    DateTime
+  turno    String
+  paradas  String[] // Array de nombres de paradas
+  estado   String   @default("Programado") // Ej: Programado, EnCurso, Finalizado, Cancelado
+  empresaId String
+  empresa  Empresa  @relation(fields: [empresaId], references: [id])
+  busId    String
+  bus      Bus      @relation(fields: [busId], references: [id])
+  choferId String
+  chofer   Chofer   @relation(fields: [choferId], references: [id])
+
+  // Relaciones: Un servicio tiene muchas...
+  posicionesGPS LogPosicion[]
+  asistencias   Asistencia[]
+  alertas       Alerta[]
+  incidentes    Incidente[]
+  
+  @@index([fecha, estado]) // Para buscar servicios por fecha y estado
+}
+
+// --- NUEVOS MODELOS (Basados en Tickets Backend) ---
+
+// Ticket B7: Telemetría GPS
+model LogPosicion {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+  lat       Float
+  lng       Float
+  
+  empresaId  String
+  empresa    Empresa  @relation(fields: [empresaId], references: [id])
+  servicioId String
+  servicio   Servicio @relation(fields: [servicioId], references: [id])
+
+  @@index([servicioId, timestamp]) // Para buscar posiciones de una ruta
+}
+
+// Tickets B8 y B12: Asistencia
+model Asistencia {
+  id     String   @id @default(cuid())
+  status String // "Presente", "Ausente", "Justificado"
+  checkIn DateTime? // Hora en que el chofer marcó (opcional)
+
+  empresaId     String
+  empresa       Empresa    @relation(fields: [empresaId], references: [id])
+  servicioId    String
+  servicio      Servicio   @relation(fields: [servicioId], references: [id])
+  trabajadorId  String
+  trabajador    Trabajador @relation(fields: [trabajadorId], references: [id])
+
+  @@unique([servicioId, trabajadorId]) // Un trabajador solo puede tener UN registro por servicio
+}
+
+// Ticket B11: Alertas
+model Alerta {
+  id         String   @id @default(cuid())
+  timestamp  DateTime @default(now())
+  tipo       String // "retraso", "desvio", "parada_omitida"
+  severidad  String // "rojo", "amarillo"
+  estado     String   @default("Pendiente") // "Pendiente", "En proceso", "Cerrada"
+  mensaje    String   @db.Text
+  
+  empresaId  String
+  empresa    Empresa  @relation(fields: [empresaId], references: [id])
+  servicioId String
+  servicio   Servicio @relation(fields: [servicioId], references: [id])
+  
+  @@index([servicioId, estado])
+}
+
+// Ticket B15: Auditoría
+model LogAuditoria {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+  accion    String // ej: "login:success", "update:fleet"
+  detalles  String?  @db.Text
+  ip        String?
+
+  empresaId String
+  empresa   Empresa @relation(fields: [empresaId], references: [id])
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+  
+  @@index([userId, accion])
+}
+
+// Ticket T22 (Frontend) / Implícito en Backend
+model Incidente {
+  id         String   @id @default(cuid())
+  timestamp  DateTime @default(now())
+  tipo       String // "Avería Mecánica", "Retraso (Tráfico)", ...
+  nota       String   @db.Text
+  urlFoto    String?
+
+  empresaId  String
+  empresa    Empresa  @relation(fields: [empresaId], references: [id])
+  servicioId String
+  servicio   Servicio @relation(fields: [servicioId], references: [id])
+  choferId   String
+  chofer     Chofer   @relation(fields: [choferId], references: [id])
+  
+  @@index([servicioId])
+}

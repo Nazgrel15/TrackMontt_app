@@ -1,23 +1,63 @@
+// src/app/api/login/route.js
 import { NextResponse } from "next/server";
+import { PrismaClient } from "@prisma/client";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 
-export async function POST(req) {
-  const { email = "demo@empresa.cl", role = "Supervisor", tenant = "DemoCo" } =
-    await req.json().catch(() => ({}));
+const prisma = new PrismaClient();
 
-  const payload = { email, role, tenant, iat: Date.now() };
-  const cookie = Buffer.from(JSON.stringify(payload), "utf-8").toString("base64");
+export async function POST(request) {
+  try {
+    const { email, password } = await request.json();
 
-  // Normaliza el rol y selecciona destino
-  const r = String(role).trim().toLowerCase();
-  const dest = r === "chofer" ? "/driver" : "/dashboard";
+    if (!email || !password) {
+      return NextResponse.json({ error: "Email y contraseña son requeridos" }, { status: 400 });
+    }
 
-  const res = NextResponse.redirect(new URL(dest, req.url)); // 307 por defecto
-  res.cookies.set("tm_auth", cookie, {
-    path: "/",
-    // En producción: httpOnly: true. En demo puedes dejarlo en false si lo necesitas en el cliente.
-    httpOnly: false,
-    sameSite: "Lax",
-  });
+    // 1. Buscar al usuario en la BD
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+    });
 
-  return res;
+    if (!user) {
+      return NextResponse.json({ error: "Credenciales inválidas" }, { status: 401 });
+    }
+
+    // 2. Validar contraseña
+    const passwordMatch = await bcrypt.compare(password, user.hashedPassword);
+    if (!passwordMatch) {
+      return NextResponse.json({ error: "Credenciales inválidas" }, { status: 401 });
+    }
+
+    // 3. Crear el JWT (AC del Ticket B1)
+    const payload = {
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      empresaId: user.empresaId, // <-- ¡La clave del SaaS!
+    };
+
+    const token = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: "8h",
+    });
+
+    // 4. Devolver respuesta OK con los datos del usuario
+    const response = NextResponse.json(payload);
+
+    // 5. Establecer la cookie de forma segura
+    response.cookies.set("tm_auth", token, {
+      httpOnly: true, // El navegador no puede leer esta cookie
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 8, // 8 horas
+      sameSite: "Lax",
+    });
+
+    return response;
+
+  } catch (error) {
+    console.error("Error en /api/login:", error);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  }
 }
