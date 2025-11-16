@@ -3,8 +3,8 @@ import { readRole } from "@/lib/auth.server";
 import { redirect } from "next/navigation";
 import AsistenciaClient from "./AsistenciaClient";
 
-export default function AsistenciaPage() {
-  const role = readRole();
+export default async function AsistenciaPage() { // <--- async
+  const role = await readRole(); // <--- await
   
   // AC 2: Solo Admin y Supervisor pueden ver/editar
   const allowedRoles = ["Administrador", "Supervisor"];

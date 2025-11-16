@@ -1,10 +1,10 @@
 // src/app/(protected)/salud/page.jsx
 import { readRole } from "@/lib/auth.server";
 import { redirect } from "next/navigation";
-import SaludClient from "./SaludClient"; // Este lo creamos en el paso 3
+import SaludClient from "./SaludClient";
 
-export default function SaludPage() {
-  const role = readRole();
+export default async function SaludPage() { // <--- async
+  const role = await readRole(); // <--- await
   
   // Página solo para Administradores
   if (role !== "Administrador") {
