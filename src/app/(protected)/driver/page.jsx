@@ -4,8 +4,8 @@ import { redirect } from "next/navigation";
 import DriverClient from "./DriverClient";
 
 
-export default function DriverPage() {
-  const role = readRole();
+export default async function DriverPage() { // <--- async
+  const role = await readRole(); // <--- await
 
   // Solo "Chofer" puede entrar a /driver
   if (role !== "Chofer") {
@@ -14,4 +14,3 @@ export default function DriverPage() {
 
   return <DriverClient />;
 }
-
