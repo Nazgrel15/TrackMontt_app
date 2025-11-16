@@ -37,7 +37,7 @@ model Empresa {
 // Modelo de Usuario (Login) - Ticket B1
 model User {
   id             String @id @default(cuid())
-  email          String @unique
+  email          String 
   name           String
   hashedPassword String
   role           String // "Administrador", "Supervisor", "Chofer"
@@ -46,6 +46,7 @@ model User {
   empresa   Empresa @relation(fields: [empresaId], references: [id])
 
   auditoriaLogs LogAuditoria[] // Un usuario puede generar muchos logs
+  @@unique([email, empresaId])
 }
 
 // --- Modelos Maestros (Tickets B3, B4, B5, B14) ---
@@ -62,6 +63,7 @@ model Bus {
 
 model Chofer {
   id        String    @id @default(cuid())
+  rut       String    // <-- CAMBIO: Añadir esta línea
   nombre    String
   licencia  String
   contacto  String
@@ -69,6 +71,7 @@ model Chofer {
   empresa   Empresa   @relation(fields: [empresaId], references: [id])
   servicios Servicio[]
   incidentes Incidente[] // Un chofer puede reportar muchos incidentes
+  @@unique([rut, empresaId])
 }
 
 model Parada {
