@@ -15,9 +15,13 @@ export async function POST(request) {
     }
 
     // 1. Buscar al usuario en la BD
-    const user = await prisma.user.findUnique({
+    // ================== CAMBIO AQUÍ ==================
+    // Usamos findFirst en lugar de findUnique porque
+    // el email solo es único en combinación con empresaId.
+    const user = await prisma.user.findFirst({ 
       where: { email: email.toLowerCase() },
     });
+    // ===============================================
 
     if (!user) {
       return NextResponse.json({ error: "Credenciales inválidas" }, { status: 401 });
@@ -47,7 +51,7 @@ export async function POST(request) {
 
     // 5. Establecer la cookie de forma segura
     response.cookies.set("tm_auth", token, {
-      httpOnly: true, // El navegador no puede leer esta cookie
+      httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       path: "/",
       maxAge: 60 * 60 * 8, // 8 horas
@@ -58,6 +62,10 @@ export async function POST(request) {
 
   } catch (error) {
     console.error("Error en /api/login:", error);
+    // Verificar si es un error de Prisma conocido
+    if (error.code) {
+       return NextResponse.json({ error: `Error de base de datos: ${error.code}` }, { status: 500 });
+    }
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }
