@@ -1,14 +1,8 @@
+// src/app/(protected)/admin/fleet/FleetClient.jsx
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react"; // 👈 1. Importar useEffect
 
-/* ======== Datos mock estables ======== */
-const INITIAL_FLEET = Object.freeze([
-  { id: "B-001", patente: "XX-AB-11", capacidad: 45, proveedor: "Buses Sur" },
-  { id: "B-002", patente: "YY-CD-22", capacidad: 40, proveedor: "TransPorto" },
-  { id: "B-003", patente: "ZZ-EF-33", capacidad: 30, proveedor: "LogiBus"   },
-]);
-
-/* ======== Validaciones ======== */
+/* ======== Validaciones (sin cambios) ======== */
 function validateBus({ patente, capacidad, proveedor }) {
   const e = {};
   if (!patente?.trim()) e.patente = "La patente es obligatoria.";
@@ -18,18 +12,7 @@ function validateBus({ patente, capacidad, proveedor }) {
   return e;
 }
 
-/* ======== Helpers para IDs ======== */
-function initialSeqFrom(seed) {
-  const nums = seed
-    .map((b) => Number(String(b.id || "").split("-")[1]))
-    .filter((n) => !Number.isNaN(n));
-  return nums.length ? Math.max(...nums) + 1 : 1; // si tienes B-001..B-003 => 4
-}
-function makeId(n) {
-  return `B-${String(n).padStart(3, "0")}`;
-}
-
-/* ======== Formulario ======== */
+/* ======== Formulario (sin cambios) ======== */
 function FleetForm({ initial, onCancel, onSubmit }) {
   const [patente, setPatente]     = useState(initial?.patente ?? "");
   const [capacidad, setCapacidad] = useState(String(initial?.capacidad ?? ""));
@@ -46,11 +29,12 @@ function FleetForm({ initial, onCancel, onSubmit }) {
     const err = validateBus(payload);
     setErrors(err);
     if (Object.keys(err).length) return;
-    onSubmit(payload); // ← el ID/edición se maneja en el componente padre
+    onSubmit(payload);
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border bg-white p-5 shadow-[0_8px_24px_rgba(0,0,0,.06)]">
+      {/* ... El JSX del formulario no cambia ... */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-black">Patente</label>
@@ -97,8 +81,8 @@ function FleetForm({ initial, onCancel, onSubmit }) {
   );
 }
 
-/* ======== Tabla ======== */
-function FleetTable({ fleet, onEdit, onDelete, onSearch }) {
+/* ======== Tabla (Se añade isLoading y error) ======== */
+function FleetTable({ fleet, onEdit, onDelete, onSearch, isLoading, error }) {
   return (
     <div className="rounded-2xl border bg-white shadow-[0_8px_24px_rgba(0,0,0,.06)]">
       <div className="flex flex-wrap items-center justify-between gap-3 p-4">
@@ -111,6 +95,7 @@ function FleetTable({ fleet, onEdit, onDelete, onSearch }) {
 
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
+          {/* ... thead (sin cambios) ... */}
           <thead className="bg-slate-50 text-left text-black/70">
             <tr>
               <th className="px-4 py-3">ID</th>
@@ -121,7 +106,14 @@ function FleetTable({ fleet, onEdit, onDelete, onSearch }) {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {fleet.map((b) => (
+            {/* 👈 2. Lógica de carga y error */}
+            {isLoading && (
+              <tr><td colSpan={5} className="px-4 py-6 text-center text-black/60">Cargando flota...</td></tr>
+            )}
+            {error && (
+              <tr><td colSpan={5} className="px-4 py-6 text-center text-red-600">{error}</td></tr>
+            )}
+            {!isLoading && !error && fleet.map((b) => (
               <tr key={b.id} className="odd:bg-white even:bg-slate-50/30">
                 <td className="px-4 py-3">{b.id}</td>
                 <td className="px-4 py-3">{b.patente}</td>
@@ -133,8 +125,8 @@ function FleetTable({ fleet, onEdit, onDelete, onSearch }) {
                 </td>
               </tr>
             ))}
-            {fleet.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-6 text-center text-black/60">Sin resultados</td></tr>
+            {!isLoading && !error && fleet.length === 0 && (
+              <tr><td colSpan={5} className="px-4 py-6 text-center text-black/60">No hay buses registrados.</td></tr>
             )}
           </tbody>
         </table>
@@ -143,14 +135,38 @@ function FleetTable({ fleet, onEdit, onDelete, onSearch }) {
   );
 }
 
-/* ======== Página cliente ======== */
+/* ======== Página cliente (TODA LA LÓGICA DE API ESTÁ AQUÍ) ======== */
 export default function FleetClient() {
-  const [fleet, setFleet]   = useState(() => [...INITIAL_FLEET]);
-  const [seq, setSeq]       = useState(() => initialSeqFrom(INITIAL_FLEET)); // p.ej. 4
-  const [filter, setFilter] = useState("");
-  const [editing, setEditing] = useState(null);
+  // 👈 3. Estados para datos, carga y filtro
+  const [fleet, setFleet]       = useState([]); // Inicia vacío
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError]         = useState(null);
+  const [filter, setFilter]     = useState("");
+  const [editing, setEditing]   = useState(null);
   const [showForm, setShowForm] = useState(false);
 
+  // 👈 4. Función para cargar datos desde la API
+  const loadData = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/buses");
+      if (!res.ok) throw new Error(`Error ${res.status}: ${await res.text()}`);
+      const data = await res.json();
+      setFleet(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 👈 5. Cargar datos cuando el componente se monta
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // 👈 6. Lógica de filtro (sin cambios, ahora usa el estado 'fleet')
   const list = useMemo(() => {
     const f = filter.trim().toLowerCase();
     if (!f) return fleet;
@@ -160,6 +176,7 @@ export default function FleetClient() {
     );
   }, [fleet, filter]);
 
+  // --- (Funciones de formulario sin cambios) ---
   function handleNew() {
     setEditing(null);
     setShowForm(true);
@@ -168,32 +185,58 @@ export default function FleetClient() {
     setEditing(null);
     setShowForm(false);
   }
-  function handleSubmit(payload) {
-    // (opcional) evita duplicados por patente al crear
-    if (!editing) {
-      const exists = fleet.some(x => x.patente.toUpperCase() === payload.patente.toUpperCase());
-      if (exists) {
-        alert("Ya existe un bus con esa patente.");
-        return;
-      }
-    }
-
-    if (editing) {
-      setFleet(prev => prev.map(b => (b.id === editing.id ? { ...editing, ...payload } : b)));
-    } else {
-      const id = makeId(seq);
-      setSeq(n => n + 1);
-      setFleet(prev => [...prev, { id, ...payload }]);
-    }
-    setShowForm(false);
-    setEditing(null);
-  }
   function handleEdit(b) {
     setEditing(b);
     setShowForm(true);
   }
-  function handleDelete(id) {
-    setFleet(prev => prev.filter(b => b.id !== id));
+
+  // 👈 7. handleSubmit (POST / PUT)
+  async function handleSubmit(payload) {
+    setError(null);
+    const url = editing ? `/api/buses/${editing.id}` : '/api/buses';
+    const method = editing ? 'PUT' : 'POST';
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Error al guardar el bus");
+      }
+      
+      // Éxito: limpiar, ocultar y recargar datos
+      setShowForm(false);
+      setEditing(null);
+      await loadData(); // Recargar la tabla
+    } catch (err) {
+      alert(`Error: ${err.message}`); // Mostrar error al usuario
+      setError(err.message);
+    }
+  }
+  
+  // 👈 8. handleDelete (DELETE)
+  async function handleDelete(id) {
+    if (!confirm("¿Estás seguro de que quieres eliminar este bus?")) return;
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/buses/${id}`, { method: 'DELETE' });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Error al eliminar el bus");
+      }
+
+      // Éxito: recargar datos
+      await loadData();
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+      setError(err.message);
+    }
   }
 
   return (
@@ -203,7 +246,6 @@ export default function FleetClient() {
         <button
           onClick={handleNew}
           className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
-          title="Mock: sin backend aún"
         >
           Agregar bus
         </button>
@@ -216,7 +258,14 @@ export default function FleetClient() {
         </div>
       )}
 
-      <FleetTable fleet={list} onEdit={handleEdit} onDelete={handleDelete} onSearch={setFilter} />
+      <FleetTable 
+        fleet={list} 
+        onEdit={handleEdit} 
+        onDelete={handleDelete} 
+        onSearch={setFilter}
+        isLoading={isLoading} // 👈 9. Pasar estado de carga
+        error={error}       // 👈 9. Pasar estado de error
+      />
     </div>
   );
 }

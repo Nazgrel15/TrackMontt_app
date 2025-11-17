@@ -37,26 +37,30 @@ export async function POST(request) {
   if (error) return error;
 
   try {
-    // CAMBIO: Añadir 'rut'
     const { rut, nombre, licencia, contacto } = await request.json();
 
-    // CAMBIO: Validar 'rut'
     if (!rut || !nombre || !licencia || !contacto) {
       return NextResponse.json({ error: "Faltan campos (rut, nombre, licencia, contacto)" }, { status: 400 });
     }
 
-    // (AC: Rut único) Prisma lo valida, pero un chequeo manual da mejor error
-    const existing = await prisma.chofer.findUnique({
-      where: { rut: rut },
+    // ================== ARREGLO AQUÍ ==================
+    // (AC: Rut único) Cambiamos findUnique por findFirst
+    // y añadimos el filtro de empresaId
+    const existing = await prisma.chofer.findFirst({
+      where: { 
+        rut: rut,
+        empresaId: session.empresaId // <-- Añadido
+      },
     });
+    // ================================================
+
     if (existing) {
-      return NextResponse.json({ error: "El RUT ya está registrado" }, { status: 409 });
+      return NextResponse.json({ error: "El RUT ya está registrado en esta empresa" }, { status: 409 });
     }
 
-    // CAMBIO: Añadir 'rut'
     const newChofer = await prisma.chofer.create({
       data: {
-        rut, // <-- AÑADIDO
+        rut,
         nombre,
         licencia: licencia.toUpperCase(),
         contacto,
@@ -67,10 +71,12 @@ export async function POST(request) {
     return NextResponse.json(newChofer, { status: 201 });
 
   } catch (err) {
-    // Manejar error de RUT único de Prisma
-    if (err.code === 'P2002' && err.meta?.target?.includes('rut')) {
-      return NextResponse.json({ error: "El RUT ya está registrado" }, { status: 409 });
+    // ================== ARREGLO AQUÍ ==================
+    // Actualizamos el nombre del constraint
+    if (err.code === 'P2002' && err.meta?.target?.includes('rut_empresaId_key')) {
+      return NextResponse.json({ error: "El RUT ya está registrado en esta empresa (constraint)" }, { status: 409 });
     }
+    // ================================================
     console.error("Error en POST /api/drivers:", err.message);
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }

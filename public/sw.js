@@ -6,7 +6,7 @@ const urlsToCache = [
   '/',
   '/login',
   '/driver',
-  '/globals.css', // Revisa si tienes otros CSS globales
+  // '/globals.css', // Revisa si tienes otros CSS globales
   '/manifest.json'
 ];
 
