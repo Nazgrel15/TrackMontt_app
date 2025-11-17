@@ -1,17 +1,19 @@
 // src/app/(protected)/layout.jsx
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { jwtVerify } from "jose"; // Importar jose
+import { jwtVerify } from "jose";
 import AppHeader from "@/components/AppHeader";
 import Sidebar from "@/components/Sidebar";
 
-// Función helper para verificar el token en el servidor
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
+
+// Función helper (movida aquí para ser usada localmente)
 async function getSession(token) {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(
       token, 
-      new TextEncoder().encode(process.env.JWT_SECRET)
+      JWT_SECRET
     );
     return payload; // Retorna { userId, email, role, name, ... }
   } catch (e) {
@@ -21,7 +23,14 @@ async function getSession(token) {
 }
 
 export default async function ProtectedLayout({ children }) {
-  const token = cookies().get("tm_auth")?.value;
+  
+  // ================== CAMBIO AQUÍ ==================
+  // 1. Primero 'await' a cookies()
+  const cookieStore = await cookies(); 
+  // 2. Luego .get() sobre el resultado
+  const token = cookieStore.get("tm_auth")?.value; 
+  // ===============================================
+
   const session = await getSession(token); // session ahora tiene { name, role, ... }
 
   if (!session) {

@@ -1,43 +1,66 @@
+// src/app/(protected)/admin/AdminClient.jsx
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react"; // 👈 1. Importar useEffect
 
-/* ======== Datos mock estables ======== */
-const ROLES = ["Administrador", "Supervisor", "Chofer"];
-const INITIAL_USERS = Object.freeze([
-  { id: "U-001", name: "Kevin Herrera", email: "kevin@trackmontt.cl", role: "Administrador" },
-  { id: "U-002", name: "Laura Soto",   email: "laura@trackmontt.cl", role: "Supervisor"   },
-  { id: "U-003", name: "Pedro Muñoz",  email: "pedro@trackmontt.cl", role: "Chofer"       },
-]);
+/* ======== Constantes ======== */
+const ROLES = ["Supervisor", "Chofer"]; // Roles que un Admin puede crear/editar
 
-/* ======== Utilidades ======== */
-function validateUser({ name, email, role }) {
+/* ======== Validaciones ======== */
+// 👈 2. Validación actualizada (incluye password)
+function validateUser({ name, email, role }, isEditing = false) {
   const e = {};
   if (!name?.trim()) e.name = "El nombre es obligatorio.";
   if (!email?.trim()) e.email = "El correo es obligatorio.";
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = "Formato de correo inválido.";
   if (!role) e.role = "Selecciona un rol.";
+  
+  // (La validación de password se hará en el formulario)
   return e;
 }
 
-/* ======== Formulario ======== */
+/* ======== Formulario (con lógica de password) ======== */
 function UserForm({ initial, onCancel, onSubmit }) {
-  const [name, setName]   = useState(initial?.name  ?? "");
-  const [email, setEmail] = useState(initial?.email ?? "");
-  const [role, setRole]   = useState(initial?.role  ?? ROLES[1]); // Supervisor por defecto
+  const [name, setName]     = useState(initial?.name  ?? "");
+  const [email, setEmail]   = useState(initial?.email ?? "");
+  const [role, setRole]     = useState(initial?.role  ?? ROLES[0]); // Supervisor por defecto
+  // 👈 3. Estados para contraseña (solo al crear)
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm]   = useState("");
+  
   const [errors, setErrors] = useState({});
+  const isEditing = !!initial; // Estamos en modo edición si hay 'initial'
 
   function handleSubmit(e) {
     e.preventDefault();
     const payload = { name: name.trim(), email: email.trim(), role };
-    const eobj = validateUser(payload);
+    const eobj = validateUser(payload, isEditing);
+
+    // 👈 4. Validar contraseña SÓLO al crear
+    if (!isEditing) {
+      if (!password) {
+        eobj.password = "La contraseña es obligatoria.";
+      } else if (password.length < 4) { // (Tu seed usa "1234")
+        eobj.password = "La contraseña debe tener al menos 4 caracteres.";
+      } else if (password !== confirm) {
+        eobj.password = "Las contraseñas no coinciden.";
+      }
+    }
+    
     setErrors(eobj);
     if (Object.keys(eobj).length) return;
-    onSubmit({ id: initial?.id ?? null, ...payload });
+
+    // Si creamos, pasamos la contraseña
+    if (!isEditing) {
+      onSubmit({ ...payload, password });
+    } else {
+      onSubmit(payload); // Si editamos, no la pasamos
+    }
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border bg-white p-5 shadow-[0_8px_24px_rgba(0,0,0,.06)]">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 text-black">
+        {/* ... campos name, email, role (sin cambios) ... */}
         <div>
           <label className="block text-sm font-medium text-black">Nombre</label>
           <input
@@ -68,6 +91,32 @@ function UserForm({ initial, onCancel, onSubmit }) {
           </select>
           {errors.role && <p className="mt-1 text-xs text-red-600">{errors.role}</p>}
         </div>
+        
+        {/* 👈 5. Mostrar campos de contraseña SÓLO al crear */}
+        {!isEditing && (
+          <>
+            <hr className="md:col-span-2 border-gray-200" />
+            <div>
+              <label className="block text-sm font-medium text-black">Contraseña</label>
+              <input
+                type="password"
+                value={password} onChange={(e)=>setPassword(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
+                placeholder="Mínimo 4 caracteres"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-black">Confirmar Contraseña</label>
+              <input
+                type="password"
+                value={confirm} onChange={(e)=>setConfirm(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
+                placeholder="Repetir contraseña"
+              />
+            </div>
+            {errors.password && <p className="mt-1 text-xs text-red-600 md:col-span-2">{errors.password}</p>}
+          </>
+        )}
       </div>
 
       <div className="flex items-center justify-end gap-2 text-black">
@@ -80,8 +129,8 @@ function UserForm({ initial, onCancel, onSubmit }) {
   );
 }
 
-/* ======== Tabla ======== */
-function UsersTable({ users, onEdit, onDelete, onSearch }) {
+/* ======== Tabla (Se añade isLoading y error) ======== */
+function UsersTable({ users, onEdit, onDelete, onSearch, isLoading, error }) {
   return (
     <div className="rounded-2xl border bg-white shadow-[0_8px_24px_rgba(0,0,0,.06)]">
       <div className="flex flex-wrap items-center justify-between gap-3 p-4">
@@ -103,7 +152,14 @@ function UsersTable({ users, onEdit, onDelete, onSearch }) {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {users.map(u => (
+            {/* 👈 6. Lógica de carga y error */}
+            {isLoading && (
+              <tr><td colSpan={5} className="px-4 py-6 text-center text-black/60">Cargando usuarios...</td></tr>
+            )}
+            {error && (
+              <tr><td colSpan={5} className="px-4 py-6 text-center text-red-600">{error}</td></tr>
+            )}
+            {!isLoading && !error && users.map(u => (
               <tr key={u.id} className="odd:bg-white even:bg-slate-50/30">
                 <td className="px-4 py-3">{u.id}</td>
                 <td className="px-4 py-3">{u.name}</td>
@@ -115,8 +171,8 @@ function UsersTable({ users, onEdit, onDelete, onSearch }) {
                 </td>
               </tr>
             ))}
-            {users.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-6 text-center text-black/60">Sin resultados</td></tr>
+            {!isLoading && !error && users.length === 0 && (
+              <tr><td colSpan={5} className="px-4 py-6 text-center text-black/60">No hay usuarios registrados.</td></tr>
             )}
           </tbody>
         </table>
@@ -125,15 +181,38 @@ function UsersTable({ users, onEdit, onDelete, onSearch }) {
   );
 }
 
-/* ======== Página ======== */
+/* ======== Página (LÓGICA DE API) ======== */
 export default function AdminPage() {
-  // estado base
-  const [users, setUsers] = useState(() => [...INITIAL_USERS]);
-  const [seq, setSeq] = useState(4); // próximo ID: U-004
-  const [filter, setFilter] = useState("");
-  const [editing, setEditing] = useState(null);
+  // 👈 7. Estados para datos, carga y filtro
+  const [users, setUsers]       = useState([]); // Inicia vacío
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError]         = useState(null);
+  const [filter, setFilter]     = useState("");
+  const [editing, setEditing]   = useState(null);
   const [showForm, setShowForm] = useState(false);
 
+  // 👈 8. Función para cargar datos desde la API
+  const loadData = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/users");
+      if (!res.ok) throw new Error(`Error ${res.status}: ${await res.text()}`);
+      const data = await res.json();
+      setUsers(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 👈 9. Cargar datos cuando el componente se monta
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // 👈 10. Lógica de filtro
   const list = useMemo(() => {
     const f = filter.trim().toLowerCase();
     if (!f) return users;
@@ -143,6 +222,7 @@ export default function AdminPage() {
     );
   }, [users, filter]);
 
+  // --- (Funciones de formulario sin cambios) ---
   function handleNew() {
     setEditing(null);
     setShowForm(true);
@@ -151,23 +231,56 @@ export default function AdminPage() {
     setEditing(null);
     setShowForm(false);
   }
-  function handleSubmit(payload) {
-    if (editing) {
-      setUsers(prev => prev.map(u => (u.id === editing.id ? { ...editing, ...payload } : u)));
-    } else {
-      const id = `U-${String(seq).padStart(3, "0")}`;
-      setSeq(n => n + 1);
-      setUsers(prev => [...prev, { id, ...payload }]);
-    }
-    setShowForm(false);
-    setEditing(null);
-  }
   function handleEdit(u) {
     setEditing(u);
     setShowForm(true);
   }
-  function handleDelete(id) {
-    setUsers(prev => prev.filter(u => u.id !== id));
+
+  // 👈 11. handleSubmit (POST / PUT)
+  async function handleSubmit(payload) {
+    setError(null);
+    const url = editing ? `/api/users/${editing.id}` : '/api/users';
+    const method = editing ? 'PUT' : 'POST';
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload), // El payload ya tiene (o no) la password desde el form
+      });
+      
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Error al guardar el usuario");
+      }
+      
+      setShowForm(false);
+      setEditing(null);
+      await loadData(); // Recargar la tabla
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+      setError(err.message);
+    }
+  }
+  
+  // 👈 12. handleDelete (DELETE)
+  async function handleDelete(id) {
+    if (!confirm("¿Estás seguro de que quieres eliminar este usuario?")) return;
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Error al eliminar el usuario");
+      }
+
+      await loadData();
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+      setError(err.message);
+    }
   }
 
   return (
@@ -178,7 +291,6 @@ export default function AdminPage() {
         <button
           onClick={handleNew}
           className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
-          title="Mock: sin backend aún"
         >
           Crear usuario
         </button>
@@ -191,7 +303,14 @@ export default function AdminPage() {
         </div>
       )}
 
-      <UsersTable users={list} onEdit={handleEdit} onDelete={handleDelete} onSearch={setFilter} />
+      <UsersTable 
+        users={list} 
+        onEdit={handleEdit} 
+        onDelete={handleDelete} 
+        onSearch={setFilter}
+        isLoading={isLoading} // 👈 13. Pasar estados
+        error={error}       // 👈 13. Pasar estados
+      />
     </div>
   );
 }
