@@ -1,3 +1,4 @@
+// src/app/api/stops/[id]/route.js
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { getApiSession } from "@/lib/api-auth";
@@ -10,7 +11,9 @@ export async function PUT(request, { params }) {
   if (error) return error;
 
   try {
-    const { id } = params;
+    // CORRECCIÓN: Esperar params
+    const { id } = await params;
+    
     const { nombre, lat, lng } = await request.json();
 
     // Validar coordenadas si se envían
@@ -50,7 +53,9 @@ export async function DELETE(request, { params }) {
   if (error) return error;
 
   try {
-    const { id } = params;
+    // CORRECCIÓN: Esperar params
+    const { id } = await params;
+
     const { count } = await prisma.parada.deleteMany({
       where: { 
         id, 
