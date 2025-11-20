@@ -1,308 +1,324 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 
-/** ---------- Mocks estables (no usar Date.now en SSR) ---------- **/
-const MOCK_BUSES = Object.freeze([
-  { id: "B-01", placa: "XX-AB-11", capacidad: 45 },
-  { id: "B-02", placa: "YY-CD-22", capacidad: 40 },
-  { id: "B-03", placa: "ZZ-EF-33", capacidad: 30 },
-]);
-const MOCK_CHOFERES = Object.freeze([
-  { id: "C-01", nombre: "Pedro Muñoz" },
-  { id: "C-02", nombre: "Laura Soto" },
-  { id: "C-03", nombre: "Héctor Pérez" },
-]);
-const SHIFTS = ["Mañana", "Tarde", "Noche"];
+/* ======== Componente de Formulario ======== */
+function ServiceForm({ initial, buses, choferes, stopsList, onCancel, onSubmit }) {
+  const [fecha, setFecha]       = useState(initial?.fecha ? new Date(initial.fecha).toISOString().split('T')[0] : "");
+  const [turno, setTurno]       = useState(initial?.turno ?? "Mañana");
+  const [busId, setBusId]       = useState(initial?.busId ?? "");
+  const [choferId, setChoferId] = useState(initial?.choferId ?? "");
+  
+  // Manejo de paradas seleccionadas (ordenadas)
+  const [selectedStops, setSelectedStops] = useState(initial?.paradas || []);
+  const [stopToAdd, setStopToAdd] = useState("");
 
-/** ---------- Utilidades ---------- **/
-function parseParadas(text) {
-  return text
-    .split("\n")
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-function prettyParadas(arr) {
-  return arr.join(" → ");
-}
-
-/** ---------- Formulario ---------- **/
-function ServiceForm({ initial, onCancel, onSubmit }) {
-  const [fecha, setFecha] = useState(initial?.fecha ?? "");
-  const [turno, setTurno] = useState(initial?.turno ?? SHIFTS[0]);
-  const [busId, setBusId] = useState(initial?.busId ?? MOCK_BUSES[0].id);
-  const [choferId, setChoferId] = useState(initial?.choferId ?? MOCK_CHOFERES[0].id);
-  const [paradasTxt, setParadasTxt] = useState(
-    initial?.paradas ? initial.paradas.join("\n") : "Terminal\nPlanta Chincui"
-  );
+  // Estados de validación
   const [errors, setErrors] = useState({});
 
-  function validate() {
-    const e = {};
-    if (!fecha) e.fecha = "La fecha es obligatoria.";
-    const arr = parseParadas(paradasTxt);
-    if (arr.length < 2) e.paradas = "Agrega al menos 2 paradas (una por línea).";
-    if (!busId) e.busId = "Selecciona un bus.";
-    if (!choferId) e.choferId = "Selecciona un chofer.";
-    setErrors(e);
-    return Object.keys(e).length === 0;
+  function addStop() {
+    if (stopToAdd && !selectedStops.includes(stopToAdd)) {
+      setSelectedStops([...selectedStops, stopToAdd]);
+      setStopToAdd("");
+    }
   }
 
-  function handleSubmit(ev) {
-    ev.preventDefault();
-    if (!validate()) return;
+  function removeStop(stopName) {
+    setSelectedStops(selectedStops.filter(s => s !== stopName));
+  }
+
+  function moveStop(index, direction) {
+    const newStops = [...selectedStops];
+    const [removed] = newStops.splice(index, 1);
+    newStops.splice(index + direction, 0, removed);
+    setSelectedStops(newStops);
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    const err = {};
+    if (!fecha) err.fecha = "Fecha requerida";
+    if (!busId) err.busId = "Bus requerido";
+    if (!choferId) err.choferId = "Chofer requerido";
+    if (selectedStops.length < 2) err.paradas = "Mínimo 2 paradas (Origen -> Destino)";
+
+    setErrors(err);
+    if (Object.keys(err).length) return;
+
     onSubmit({
-      id: initial?.id ?? null,
       fecha,
       turno,
-      paradas: parseParadas(paradasTxt),
       busId,
       choferId,
+      paradas: selectedStops
     });
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-4 rounded-2xl border bg-white p-5 shadow-[0_8px_24px_rgba(0,0,0,.06)] text-neutral-900"
-    >
+    <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border bg-white p-5 shadow-sm text-black">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        
+        {/* Fecha y Turno */}
         <div>
-          <label className="block text-sm font-medium text-neutral-800">Fecha</label>
-          <input
-            type="date"
-            value={fecha}
-            onChange={(e) => setFecha(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2
-                       text-neutral-900 placeholder-neutral-500
-                       focus:border-blue-500 focus:ring-blue-500"
+          <label className="block text-sm font-medium">Fecha</label>
+          <input 
+            type="date" 
+            value={fecha} 
+            onChange={e => setFecha(e.target.value)} 
+            className="mt-1 w-full rounded-lg border px-3 py-2"
           />
-          {errors.fecha && <p className="mt-1 text-xs text-red-600">{errors.fecha}</p>}
+          {errors.fecha && <p className="text-xs text-red-600">{errors.fecha}</p>}
         </div>
-
         <div>
-          <label className="block text-sm font-medium text-neutral-800">Turno</label>
-          <select
-            value={turno}
-            onChange={(e) => setTurno(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2
-                       text-neutral-900 placeholder-neutral-500
-                       focus:border-blue-500 focus:ring-blue-500"
+          <label className="block text-sm font-medium">Turno</label>
+          <select 
+            value={turno} 
+            onChange={e => setTurno(e.target.value)} 
+            className="mt-1 w-full rounded-lg border px-3 py-2"
           >
-            {SHIFTS.map((s) => <option key={s}>{s}</option>)}
+            <option>Mañana</option>
+            <option>Tarde</option>
+            <option>Noche</option>
           </select>
         </div>
 
+        {/* Selectores Dinámicos */}
         <div>
-          <label className="block text-sm font-medium text-neutral-800">Bus</label>
-          <select
-            value={busId}
-            onChange={(e) => setBusId(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2
-                       text-neutral-900 placeholder-neutral-500
-                       focus:border-blue-500 focus:ring-blue-500"
+          <label className="block text-sm font-medium">Bus Asignado</label>
+          <select 
+            value={busId} 
+            onChange={e => setBusId(e.target.value)} 
+            className="mt-1 w-full rounded-lg border px-3 py-2"
           >
-            {MOCK_BUSES.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.id} — {b.placa} · {b.capacidad} pax
-              </option>
+            <option value="">-- Seleccionar Bus --</option>
+            {buses.map(b => (
+              <option key={b.id} value={b.id}>{b.patente} ({b.capacidad} pax)</option>
             ))}
           </select>
-          {errors.busId && <p className="mt-1 text-xs text-red-600">{errors.busId}</p>}
+          {errors.busId && <p className="text-xs text-red-600">{errors.busId}</p>}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-800">Chofer</label>
-          <select
-            value={choferId}
-            onChange={(e) => setChoferId(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2
-                       text-neutral-900 placeholder-neutral-500
-                       focus:border-blue-500 focus:ring-blue-500"
+          <label className="block text-sm font-medium">Chofer Asignado</label>
+          <select 
+            value={choferId} 
+            onChange={e => setChoferId(e.target.value)} 
+            className="mt-1 w-full rounded-lg border px-3 py-2"
           >
-            {MOCK_CHOFERES.map((c) => (
+            <option value="">-- Seleccionar Chofer --</option>
+            {choferes.map(c => (
               <option key={c.id} value={c.id}>{c.nombre}</option>
             ))}
           </select>
-          {errors.choferId && <p className="mt-1 text-xs text-red-600">{errors.choferId}</p>}
-        </div>
-
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-neutral-800">
-            Paradas (una por línea)
-          </label>
-          <textarea
-            rows={4}
-            value={paradasTxt}
-            onChange={(e) => setParadasTxt(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2
-                       text-neutral-900 placeholder-neutral-500
-                       focus:border-blue-500 focus:ring-blue-500"
-            placeholder={"Ej:\nTerminal\nPlanta Chincui"}
-          />
-          {errors.paradas && <p className="mt-1 text-xs text-red-600">{errors.paradas}</p>}
+          {errors.choferId && <p className="text-xs text-red-600">{errors.choferId}</p>}
         </div>
       </div>
 
-      <div className="flex items-center justify-end gap-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-lg border px-4 py-2 text-sm text-neutral-800 hover:bg-black/5"
-        >
-          Cancelar
-        </button>
-        <button
-          type="submit"
-          className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
-        >
-          Guardar servicio
-        </button>
+      {/* Gestor de Paradas (Ordenable) */}
+      <div className="border-t pt-4">
+        <label className="block text-sm font-medium mb-2">Ruta (Paradas Ordenadas)</label>
+        
+        <div className="flex gap-2 mb-2">
+          <select 
+            value={stopToAdd} 
+            onChange={e => setStopToAdd(e.target.value)}
+            className="flex-1 rounded-lg border px-3 py-2"
+          >
+            <option value="">-- Agregar Parada --</option>
+            {stopsList.map(s => (
+              <option key={s.id} value={s.nombre}>{s.nombre}</option>
+            ))}
+          </select>
+          <button type="button" onClick={addStop} className="bg-gray-100 px-4 rounded-lg hover:bg-gray-200">+</button>
+        </div>
+
+        <ul className="space-y-2 bg-slate-50 p-3 rounded-lg min-h-[100px]">
+          {selectedStops.length === 0 && <li className="text-sm text-gray-400 text-center">Agrega paradas para armar la ruta...</li>}
+          {selectedStops.map((stop, idx) => (
+            <li key={idx} className="flex items-center justify-between bg-white p-2 rounded border shadow-sm">
+              <span className="flex items-center gap-2">
+                <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded-full">{idx + 1}</span>
+                {stop}
+              </span>
+              <div className="flex items-center gap-1">
+                <button type="button" disabled={idx === 0} onClick={() => moveStop(idx, -1)} className="px-2 text-gray-500 hover:text-black">↑</button>
+                <button type="button" disabled={idx === selectedStops.length - 1} onClick={() => moveStop(idx, 1)} className="px-2 text-gray-500 hover:text-black">↓</button>
+                <button type="button" onClick={() => removeStop(stop)} className="px-2 text-red-500 hover:text-red-700">×</button>
+              </div>
+            </li>
+          ))}
+        </ul>
+        {errors.paradas && <p className="text-xs text-red-600 mt-1">{errors.paradas}</p>}
+      </div>
+
+      <div className="flex justify-end gap-2 border-t pt-4">
+        <button type="button" onClick={onCancel} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancelar</button>
+        <button type="submit" className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-semibold">Guardar Servicio</button>
       </div>
     </form>
   );
 }
 
-/** ---------- Tabla ---------- **/
-function ServicesTable({ services, onEdit, onDelete }) {
-  if (services.length === 0) {
-    return (
-      <div className="rounded-2xl border bg-white p-8 text-center text-neutral-700 shadow-[0_8px_24px_rgba(0,0,0,.06)]">
-        No hay servicios planificados aún.
-      </div>
-    );
-  }
-
+/* ======== Tabla de Servicios ======== */
+function ServicesTable({ services, onDelete }) {
   return (
-    <div className="overflow-x-auto rounded-2xl border bg-white shadow-[0_8px_24px_rgba(0,0,0,.06)]">
-      <table className="min-w-full text-sm text-neutral-800">
-        <thead className="bg-slate-50 text-left text-neutral-700">
+    <div className="overflow-x-auto rounded-2xl border bg-white shadow-sm">
+      <table className="min-w-full text-sm text-left">
+        <thead className="bg-slate-50 text-gray-500">
           <tr>
             <th className="px-4 py-3">Fecha</th>
             <th className="px-4 py-3">Turno</th>
-            <th className="px-4 py-3">Paradas</th>
-            <th className="px-4 py-3">Bus</th>
-            <th className="px-4 py-3">Chofer</th>
+            <th className="px-4 py-3">Ruta</th>
+            <th className="px-4 py-3">Bus / Chofer</th>
+            <th className="px-4 py-3">Estado</th>
             <th className="px-4 py-3 text-right">Acciones</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-200">
+        <tbody className="divide-y divide-gray-100">
           {services.map((s) => (
-            <tr key={s.id} className="odd:bg-white even:bg-slate-50/40">
-              <td className="px-4 py-3">{s.fecha}</td>
+            <tr key={s.id} className="hover:bg-slate-50/50">
+              <td className="px-4 py-3 whitespace-nowrap">
+                {new Date(s.fecha).toLocaleDateString()}
+              </td>
               <td className="px-4 py-3">{s.turno}</td>
-              <td className="px-4 py-3">{prettyParadas(s.paradas)}</td>
-              <td className="px-4 py-3">{s.busId}</td>
-              <td className="px-4 py-3">{s.choferId}</td>
+              <td className="px-4 py-3">
+                <div className="flex flex-col">
+                  <span className="font-medium text-blue-700">{s.paradas[0]}</span>
+                  <span className="text-xs text-gray-400">▼</span>
+                  <span className="font-medium text-emerald-700">{s.paradas[s.paradas.length - 1]}</span>
+                </div>
+              </td>
+              <td className="px-4 py-3">
+                <div className="font-medium">{s.bus?.patente || "Sin Bus"}</div>
+                <div className="text-xs text-gray-500">{s.chofer?.nombre || "Sin Chofer"}</div>
+              </td>
+              <td className="px-4 py-3">
+                <span className={`px-2 py-1 rounded-full text-xs font-semibold
+                  ${s.estado === 'Programado' ? 'bg-slate-100 text-slate-700' : 
+                    s.estado === 'EnCurso' ? 'bg-blue-100 text-blue-700' : 
+                    'bg-green-100 text-green-700'}`}>
+                  {s.estado}
+                </span>
+              </td>
               <td className="px-4 py-3 text-right">
-                <button
-                  onClick={() => onEdit(s)}
-                  className="mr-2 rounded-lg border px-3 py-1 text-neutral-700 hover:bg-black/5"
-                >
-                  Editar
-                </button>
-                <button
+                <button 
                   onClick={() => onDelete(s.id)}
-                  className="rounded-lg border border-red-200 bg-red-50 px-3 py-1 text-red-700 hover:bg-red-100"
+                  className="text-red-600 hover:bg-red-50 px-3 py-1 rounded border border-transparent hover:border-red-100 transition"
                 >
-                  Borrar
+                  Cancelar
                 </button>
               </td>
             </tr>
           ))}
+          {services.length === 0 && (
+            <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No hay servicios programados.</td></tr>
+          )}
         </tbody>
       </table>
     </div>
   );
 }
 
-/** ---------- Página ---------- **/
-export default function PlaninngPage() {
-  // contador simple para IDs predecibles en cliente
-  const [seq, setSeq] = useState(1);
-  const [editing, setEditing] = useState(null);
-  const [services, setServices] = useState(() => [
-    // ejemplo inicial
-    {
-      id: "S-000",
-      fecha: "2025-09-05",
-      turno: "Mañana",
-      paradas: ["Terminal", "Planta Chincui"],
-      busId: "B-01",
-      choferId: "C-01",
-    },
-  ]);
-
+/* ======== Página Principal ======== */
+export default function PlanningPage() {
+  // Datos maestros
+  const [buses, setBuses] = useState([]);
+  const [choferes, setChoferes] = useState([]);
+  const [stopsList, setStopsList] = useState([]);
+  
+  // Datos transaccionales
+  const [services, setServices] = useState([]);
+  
+  // UI State
   const [showForm, setShowForm] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const titulo = useMemo(
-    () => (editing ? "Editar servicio" : "Nuevo servicio"),
-    [editing]
-  );
+  // Carga inicial de todos los datos
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const [resBuses, resDrivers, resStops, resServices] = await Promise.all([
+          fetch("/api/buses"),
+          fetch("/api/drivers"),
+          fetch("/api/stops"),
+          fetch("/api/services")
+        ]);
 
-  function handleCreateClick() {
-    setEditing(null);
-    setShowForm(true);
-  }
+        if (resBuses.ok) setBuses(await resBuses.json());
+        if (resDrivers.ok) setChoferes(await resDrivers.json());
+        if (resStops.ok) setStopsList(await resStops.json());
+        if (resServices.ok) setServices(await resServices.json());
 
-  function handleCancel() {
-    setEditing(null);
-    setShowForm(false);
-  }
+      } catch (e) {
+        console.error("Error cargando datos:", e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
-  function handleSubmit(payload) {
-    if (editing) {
-      setServices((prev) =>
-        prev.map((x) => (x.id === editing.id ? { ...editing, ...payload } : x))
-      );
-    } else {
-      const newId = `S-${String(seq).padStart(3, "0")}`;
-      setSeq((n) => n + 1);
-      setServices((prev) => [...prev, { ...payload, id: newId }]);
+  const handleCreate = async (payload) => {
+    try {
+      const res = await fetch("/api/services", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      
+      if (res.ok) {
+        const newSvc = await res.json();
+        // Recargar la lista completa para traer las relaciones (bus/chofer) correctamente populadas
+        const refresh = await fetch("/api/services");
+        setServices(await refresh.json());
+        setShowForm(false);
+      } else {
+        alert("Error al crear servicio");
+      }
+    } catch (e) {
+      alert(e.message);
     }
-    setShowForm(false);
-    setEditing(null);
-  }
+  };
 
-  function handleEdit(svc) {
-    setEditing(svc);
-    setShowForm(true);
-  }
-
-  function handleDelete(id) {
-    setServices((prev) => prev.filter((x) => x.id !== id));
-  }
+  const handleDelete = async (id) => {
+    if (!confirm("¿Seguro deseas cancelar este servicio?")) return;
+    try {
+      const res = await fetch(`/api/services/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setServices(prev => prev.filter(s => s.id !== id));
+      }
+    } catch (e) {
+      alert("Error de conexión");
+    }
+  };
 
   return (
-    <div className="mx-auto grid max-w-6xl gap-6">
-      {/* Header sección */}
+    <div className="mx-auto grid max-w-6xl gap-6 text-black">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-black">Planificación de servicios</h1>
-        <button
-          onClick={handleCreateClick}
-          className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
-          title="Mock: aún sin backend"
+        <h1 className="text-xl font-semibold">Planificación de Servicios</h1>
+        <button 
+          onClick={() => setShowForm(true)}
+          className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 transition"
         >
-          Nuevo servicio
+          + Nuevo Servicio
         </button>
       </div>
 
       {showForm && (
-        <div className="space-y-3">
-          <h2 className="text-lg font-medium text-black">{titulo}</h2>
-          <ServiceForm
-            initial={editing}
-            onCancel={handleCancel}
-            onSubmit={handleSubmit}
-          />
-        </div>
+        <ServiceForm 
+          buses={buses}
+          choferes={choferes}
+          stopsList={stopsList}
+          onCancel={() => setShowForm(false)}
+          onSubmit={handleCreate}
+        />
       )}
 
-      {/* Lista / tabla */}
-      <ServicesTable
-        services={services}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
+      {isLoading ? (
+        <p className="text-center text-gray-500 py-10">Cargando planificador...</p>
+      ) : (
+        <ServicesTable services={services} onDelete={handleDelete} />
+      )}
     </div>
   );
 }
