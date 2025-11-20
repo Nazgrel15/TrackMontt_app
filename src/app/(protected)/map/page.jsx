@@ -1,71 +1,96 @@
 "use client";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import L from "leaflet";
-
-// ------------ Íconos mock (bus y parada) ------------
-const busIcon = new L.Icon({
-  iconUrl: "/images/location.png", // Asegúrate de tener este ícono en public/bus-icon.png
-  iconSize: [32, 32],
-  iconAnchor: [16, 32],
-});
-
-const stopIcon = new L.Icon({
-  iconUrl: "https://cdn-icons-png.flaticon.com/512/252/252025.png",
-  iconSize: [28, 28],
-  iconAnchor: [14, 28],
-});
-
-// ------------ Datos mock ------------
-const MOCK_BUSES = [
-  { id: "B1", lat: -41.4717, lng: -72.9360, eta: "5 min" }, // bus en movimiento
-  { id: "B2", lat: -41.4800, lng: -72.9500, eta: "12 min" },
-];
-
-const MOCK_STOPS = [
-  { id: "S1", name: "Terminal Puerto Montt", lat: -41.4710, lng: -72.9420 },
-  { id: "S2", name: "Planta Chincui", lat: -41.4850, lng: -72.9550 },
-];
+import { useEffect, useRef, useState } from "react";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 
 export default function MapPage() {
+  const mapContainer = useRef(null);
+  const map = useRef(null);
+  const markersRef = useRef({}); // Guardar referencias a los marcadores por ID de servicio
+  const [lastUpdate, setLastUpdate] = useState(null);
+
+  const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+
+  // 1. Inicializar Mapa
+  useEffect(() => {
+    if (map.current) return;
+
+    mapboxgl.accessToken = MAPBOX_TOKEN;
+    map.current = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: 'mapbox://styles/mapbox/streets-v12',
+      center: [-72.9360, -41.4717], // Puerto Montt
+      zoom: 12
+    });
+
+    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+  }, [MAPBOX_TOKEN]);
+
+  // 2. Polling: Consultar API cada 5 segundos
+  useEffect(() => {
+    const fetchFleet = async () => {
+      try {
+        const res = await fetch("/api/gps/latest");
+        if (!res.ok) return;
+        const fleet = await res.json();
+        
+        setLastUpdate(new Date().toLocaleTimeString());
+
+        // Actualizar marcadores
+        fleet.forEach(vehicle => {
+          const { servicioId, lat, lng, busPatente } = vehicle;
+
+          if (markersRef.current[servicioId]) {
+            // Si ya existe, moverlo (animación suave nativa de Mapbox)
+            markersRef.current[servicioId].setLngLat([lng, lat]);
+          } else {
+            // Si no existe, crearlo
+            const el = document.createElement('div');
+            el.className = 'marker-bus';
+            el.style.backgroundColor = '#3b82f6';
+            el.style.width = '30px';
+            el.style.height = '30px';
+            el.style.borderRadius = '50%';
+            el.style.border = '2px solid white';
+            el.style.display = 'flex';
+            el.style.alignItems = 'center';
+            el.style.justifyContent = 'center';
+            el.innerHTML = '🚌'; // Icono simple
+
+            const marker = new mapboxgl.Marker(el)
+              .setLngLat([lng, lat])
+              .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML(`
+                <strong>${busPatente}</strong><br>
+                ${vehicle.ruta}<br>
+                <small>Actualizado: ${new Date(vehicle.timestamp).toLocaleTimeString()}</small>
+              `))
+              .addTo(map.current);
+
+            markersRef.current[servicioId] = marker;
+          }
+        });
+
+      } catch (e) {
+        console.error("Error polling flota:", e);
+      }
+    };
+
+    const intervalId = setInterval(fetchFleet, 5000); // Cada 5 seg
+    fetchFleet(); // Primera carga inmediata
+
+    return () => clearInterval(intervalId);
+  }, []);
+
   return (
-    <div className="mx-auto h-[80vh] w-full max-w-6xl overflow-hidden rounded-2xl border shadow-[0_8px_24px_rgba(0,0,0,.06)]">
-      <MapContainer
-        center={[-41.4717, -72.9360]} // Puerto Montt aprox
-        zoom={13}
-        className="h-full w-full"
-      >
-        {/* Capa base (OpenStreetMap; se puede cambiar a Mapbox/Google más adelante) */}
-        <TileLayer
-          attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-
-        {/* Markers de buses */}
-        {MOCK_BUSES.map((b) => (
-          <Marker key={b.id} position={[b.lat, b.lng]} icon={busIcon}>
-            <Popup>
-              <div className="text-sm">
-                <strong>Bus {b.id}</strong>
-                <br />
-                ETA: {b.eta} ⏱️
-              </div>
-            </Popup>
-          </Marker>
-        ))}
-
-        {/* Markers de paradas */}
-        {MOCK_STOPS.map((s) => (
-          <Marker key={s.id} position={[s.lat, s.lng]} icon={stopIcon}>
-            <Popup>
-              <div className="text-sm">
-                <strong>{s.name}</strong>
-                <br />
-                Parada oficial 🅿️
-              </div>
-            </Popup>
-          </Marker>
-        ))}
-      </MapContainer>
+    <div className="mx-auto h-[85vh] w-full max-w-7xl flex flex-col gap-4">
+      <div className="flex justify-between items-center">
+        <h1 className="text-xl font-semibold text-black">Monitoreo de Flota en Vivo</h1>
+        {lastUpdate && <span className="text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full animate-pulse">● En vivo ({lastUpdate})</span>}
+      </div>
+      
+      <div className="flex-1 rounded-2xl border shadow-sm overflow-hidden relative">
+         <div ref={mapContainer} className="w-full h-full" />
+      </div>
     </div>
   );
 }
