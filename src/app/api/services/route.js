@@ -4,14 +4,27 @@ import { getApiSession } from "@/lib/api-auth";
 
 const prisma = new PrismaClient();
 
-// GET: Listar servicios (con relaciones)
+// GET: Listar servicios (con relaciones) - (Sin cambios)
 export async function GET(request) {
-  const { session, error } = await getApiSession(request, { requireAdmin: false }); // Supervisors también leen
+  const { session, error } = await getApiSession(request, { requireAdmin: false });
   if (error) return error;
 
   try {
+    // 1. Buscamos si el usuario logueado es un Chofer
+    const perfilChofer = await prisma.chofer.findUnique({
+      where: { userId: session.userId } 
+    });
+
+    // 2. Filtro base: servicios de la empresa
+    let whereCondition = { empresaId: session.empresaId };
+
+    // 3. Si es chofer, SOLO devolvemos SUS servicios
+    if (session.role === "Chofer" && perfilChofer) {
+      whereCondition.choferId = perfilChofer.id;
+    }
+
     const services = await prisma.servicio.findMany({
-      where: { empresaId: session.empresaId },
+      where: whereCondition,
       include: {
         bus: true,
         chofer: true,
@@ -41,7 +54,8 @@ export async function POST(request) {
     // Crear el servicio (Estado por defecto: "Programado")
     const newService = await prisma.servicio.create({
       data: {
-        fecha: new Date(fecha), // Convertir string YYYY-MM-DD a Date ISO
+        // CAMBIO AQUÍ: Forzamos mediodía UTC para evitar problemas de zona horaria
+        fecha: new Date(fecha + "T12:00:00Z"), 
         turno,
         paradas, // Array de strings (nombres)
         busId,

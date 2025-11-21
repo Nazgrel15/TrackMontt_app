@@ -2,33 +2,80 @@
 import { useEffect, useState, useRef } from "react";
 
 export default function DriverClient() {
+  // Evitar hydration mismatch
+  const [mounted, setMounted] = useState(false);
+
+  // Estado
   const [services, setServices] = useState([]);
   const [activeService, setActiveService] = useState(null);
   const [isSending, setIsSending] = useState(false);
-  const [logs, setLogs] = useState([]); // Log visual para el chofer
+  const [logs, setLogs] = useState([]);
   const intervalRef = useRef(null);
 
-  // 1. Cargar servicios asignados al chofer (Mock o API real si tuvieramos filtro por chofer)
-  // Para este MVP, cargaremos todos y filtraremos (idealmente el backend filtraría por session.userId)
+  const [workers, setWorkers] = useState([]);
+  const [attendance, setAttendance] = useState({});
+  const [search, setSearch] = useState("");
+
+  // Marcar como montado
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Carga inicial
+  useEffect(() => {
+    if (!mounted) return;
+
     fetch("/api/services")
       .then(res => res.json())
       .then(data => {
-        // Filtramos servicios que no estén finalizados
-        const available = data.filter(s => s.estado !== 'Finalizado');
+        const available = data.filter(s => s.estado !== "Finalizado");
         setServices(available);
+
+        const savedSvcId = localStorage.getItem("tm_active_svc");
+        if (savedSvcId) {
+          const found = available.find(s => s.id === savedSvcId);
+          if (found) toggleService(found, true);
+        }
       })
-      .catch(err => console.error(err));
+      .catch(console.error);
+
+    fetch("/api/workers")
+      .then(res => res.json())
+      .then(setWorkers)
+      .catch(console.error);
+
+  }, [mounted]);
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, []);
 
-  // 2. Función para enviar ubicación
+  // --- Funciones auxiliares ---
+  const loadAttendance = async (serviceId) => {
+    try {
+      const res = await fetch(`/api/attendance?serviceId=${serviceId}`, {
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const map = {};
+        data.forEach((r) => (map[r.trabajadorId] = r.status));
+        setAttendance(map);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const sendLocation = (serviceId) => {
     if (!navigator.geolocation) return;
 
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
         try {
           await fetch("/api/gps", {
             method: "POST",
@@ -36,112 +83,213 @@ export default function DriverClient() {
             body: JSON.stringify({
               lat: latitude,
               lng: longitude,
-              servicioId: serviceId
-            })
+              servicioId: serviceId,
+            }),
           });
-          
+
           const time = new Date().toLocaleTimeString();
-          setLogs(prev => [`Enviado: ${latitude.toFixed(4)}, ${longitude.toFixed(4)} (${time})`, ...prev.slice(0, 4)]);
+          setLogs((prev) => [`GPS OK: ${time}`, ...prev.slice(0, 2)]);
         } catch (err) {
-          console.error("Error enviando GPS", err);
+          console.error(err);
         }
       },
-      (error) => console.error("Error GPS navegador", error),
+      (err) => console.error(err),
       { enableHighAccuracy: true }
     );
   };
 
-  // 3. Manejar Inicio/Fin de viaje
-  const toggleService = async (service) => {
-    if (activeService?.id === service.id) {
-      // DETENER
+  const toggleService = async (service, isRestore = false) => {
+    if (activeService?.id === service.id && !isRestore) {
       clearInterval(intervalRef.current);
       setIsSending(false);
       setActiveService(null);
-      
-      // Actualizar estado a Finalizado en BD
+      localStorage.removeItem("tm_active_svc");
+
       await fetch(`/api/services/${service.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ estado: "Finalizado" })
+        body: JSON.stringify({ estado: "Finalizado" }),
       });
-      
-      alert("Servicio finalizado.");
-      window.location.reload(); // Recargar para limpiar lista
-    } else {
-      // INICIAR
-      if (activeService) return alert("Ya tienes un servicio en curso.");
-      
-      // Actualizar estado a EnCurso en BD
+
+      alert("Ruta finalizada.");
+      window.location.reload();
+      return;
+    }
+
+    if (activeService && activeService.id !== service.id)
+      return alert("Ya tienes un servicio en curso.");
+
+    if (!isRestore) {
       await fetch(`/api/services/${service.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ estado: "EnCurso" })
+        body: JSON.stringify({ estado: "EnCurso" }),
       });
+    }
 
-      setActiveService(service);
-      setIsSending(true);
+    setActiveService(service);
+    setIsSending(true);
+    localStorage.setItem("tm_active_svc", service.id);
 
-      // Enviar primera posición inmediatamente
-      sendLocation(service.id);
-      
-      // Configurar intervalo cada 5 segundos
-      intervalRef.current = setInterval(() => {
-        sendLocation(service.id);
-      }, 5000);
+    loadAttendance(service.id);
+    sendLocation(service.id);
+
+    intervalRef.current = setInterval(() => sendLocation(service.id), 5000);
+  };
+
+  const handleCheckIn = async (workerId) => {
+    const newStatus =
+      attendance[workerId] === "Presente" ? "Ausente" : "Presente";
+    setAttendance((prev) => ({ ...prev, [workerId]: newStatus }));
+
+    try {
+      await fetch("/api/attendance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: activeService.id,
+          passengers: [{ workerId, status: newStatus }],
+        }),
+      });
+    } catch (e) {
+      alert("Error al guardar asistencia");
+      setAttendance((prev) => ({
+        ...prev,
+        [workerId]: attendance[workerId],
+      }));
     }
   };
 
-  // Limpieza al desmontar
-  useEffect(() => {
-    return () => clearInterval(intervalRef.current);
-  }, []);
+  const filteredWorkers = workers.filter(
+    (w) =>
+      w.nombre.toLowerCase().includes(search.toLowerCase()) ||
+      w.rut.includes(search)
+  );
 
+  // Render seguro
+  if (!mounted) {
+    return (
+      <div className="p-10 text-center text-gray-500">
+        Cargando panel de conductor...
+      </div>
+    );
+  }
+
+  // --- Render real ---
   return (
-    <div className="mx-auto grid max-w-2xl gap-6 text-black">
+    <div className="mx-auto grid max-w-2xl gap-6 text-black pb-20">
       <h1 className="text-xl font-semibold">Panel de Conductor</h1>
 
-      {/* Lista de Servicios */}
-      <section className="space-y-4">
-        {services.length === 0 && <p className="text-gray-500">No tienes servicios asignados hoy.</p>}
-        
-        {services.map(s => {
-          const isActive = activeService?.id === s.id;
-          return (
-            <div key={s.id} className={`rounded-2xl border p-5 shadow-sm transition ${isActive ? 'border-green-500 bg-green-50' : 'bg-white'}`}>
-              <div className="flex justify-between items-start">
+      {services.map((s) => {
+        const isActive = activeService?.id === s.id;
+        if (activeService && !isActive) return null;
+
+        return (
+          <div
+            key={s.id}
+            className={`rounded-2xl border shadow-sm overflow-hidden ${
+              isActive ? "border-green-500" : "bg-white"
+            }`}
+          >
+            <div className={`p-5 ${isActive ? "bg-green-50" : ""}`}>
+              <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h3 className="font-bold text-lg">{s.paradas[0]} → {s.paradas[s.paradas.length - 1]}</h3>
-                  <p className="text-sm text-gray-600">Bus: {s.bus?.patente} • Turno: {s.turno}</p>
-                  <span className="text-xs bg-gray-200 px-2 py-1 rounded mt-2 inline-block">{s.estado}</span>
+                  <h3 className="font-bold text-lg">
+                    {s.paradas[0]} → {s.paradas[s.paradas.length - 1]}
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    {s.bus?.patente} • {s.turno}
+                  </p>
                 </div>
+
                 <button
                   onClick={() => toggleService(s)}
-                  className={`px-4 py-2 rounded-lg font-semibold text-white shadow 
-                    ${isActive ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                  className={`px-4 py-2 rounded-lg font-semibold text-white shadow transition
+                  ${
+                    isActive
+                      ? "bg-red-600 hover:bg-red-700"
+                      : "bg-blue-600 hover:bg-blue-700"
+                  }`}
                 >
-                  {isActive ? "Finalizar Ruta" : "Iniciar Ruta"}
+                  {isActive ? "Finalizar" : "Iniciar"}
                 </button>
               </div>
-              
+
               {isActive && (
-                <div className="mt-4 border-t border-green-200 pt-3">
-                  <div className="flex items-center gap-2 text-green-800 mb-2">
-                    <span className="relative flex h-3 w-3">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                    </span>
-                    <span className="text-sm font-medium">Transmitiendo ubicación en tiempo real...</span>
-                  </div>
-                  <div className="text-xs text-gray-500 font-mono bg-white/50 p-2 rounded">
-                    {logs.map((l, i) => <div key={i}>{l}</div>)}
-                  </div>
+                <div className="text-xs font-mono text-green-700 flex items-center gap-2 mb-4">
+                  <span className="animate-pulse">●</span>{" "}
+                  {logs[0] || "Conectando GPS..."}
                 </div>
               )}
             </div>
-          );
-        })}
-      </section>
+
+            {isActive && (
+              <div className="border-t bg-white p-4">
+                <h4 className="font-semibold mb-3">
+                  Lista de Pasajeros (
+                  {
+                    Object.values(attendance).filter(
+                      (s) => s === "Presente"
+                    ).length
+                  }
+                  )
+                </h4>
+
+                <input
+                  placeholder="Buscar por nombre o RUT..."
+                  className="w-full p-2 border rounded-lg mb-3 text-sm"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+
+                <div className="max-h-60 overflow-y-auto divide-y">
+                  {filteredWorkers.map((w) => {
+                    const isPresent = attendance[w.id] === "Presente";
+
+                    return (
+                      <div
+                        key={w.id}
+                        className="flex items-center justify-between py-3 px-1"
+                      >
+                        <div>
+                          <div className="font-medium">{w.nombre}</div>
+                          <div className="text-xs text-gray-500">
+                            {w.rut} • {w.area}
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => handleCheckIn(w.id)}
+                          className={`h-10 w-10 rounded-full flex items-center justify-center text-lg border transition
+                          ${
+                            isPresent
+                              ? "bg-green-100 border-green-500 text-green-700"
+                              : "bg-gray-50 border-gray-300 text-gray-300 hover:border-gray-400"
+                          }`}
+                        >
+                          {isPresent ? "✓" : "+"}
+                        </button>
+                      </div>
+                    );
+                  })}
+
+                  {filteredWorkers.length === 0 && (
+                    <p className="text-center py-4 text-gray-400">
+                      No se encontraron trabajadores.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {!activeService && services.length === 0 && (
+        <p className="text-center text-gray-500">
+          No hay servicios asignados.
+        </p>
+      )}
     </div>
   );
 }

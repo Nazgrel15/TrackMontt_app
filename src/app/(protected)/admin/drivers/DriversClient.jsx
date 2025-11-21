@@ -1,24 +1,38 @@
 // src/app/(protected)/admin/drivers/DriversClient.jsx
 "use client";
-import { useMemo, useState, useEffect } from "react"; // 👈 1. Importar useEffect
+import { useMemo, useState, useEffect } from "react"; 
 
 /* ======== Validaciones (con RUT) ======== */
-function validateDriver({ rut, nombre, licencia, contacto }) {
+function validateDriver({ rut, nombre, licencia, contacto, email }, isEditing) {
   const e = {};
   if (!rut?.trim())      e.rut      = "El RUT es obligatorio.";
   if (!nombre?.trim())   e.nombre   = "El nombre es obligatorio.";
   if (!licencia?.trim()) e.licencia = "La licencia es obligatoria.";
   if (!contacto?.trim()) e.contacto = "El contacto es obligatorio.";
+  
+  // Validación extra solo si estamos creando (requiere email)
+  if (!isEditing) {
+    if (!email?.trim()) {
+      e.email = "El correo es obligatorio para crear la cuenta.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      e.email = "Formato de correo inválido.";
+    }
+  }
   return e;
 }
 
-/* ======== Formulario (con RUT) ======== */
+/* ======== Formulario (con RUT y Email Automático) ======== */
 function DriverForm({ initial, onCancel, onSubmit }) {
   const [rut, setRut]           = useState(initial?.rut ?? "");
   const [nombre, setNombre]     = useState(initial?.nombre ?? "");
   const [licencia, setLicencia] = useState(initial?.licencia ?? "");
   const [contacto, setContacto] = useState(initial?.contacto ?? "");
+  
+  // Nuevo campo para Login (solo al crear)
+  const [email, setEmail]       = useState(""); 
+  
   const [errors, setErrors]     = useState({});
+  const isEditing = !!initial;
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -27,10 +41,14 @@ function DriverForm({ initial, onCancel, onSubmit }) {
       nombre: nombre.trim(),
       licencia: licencia.trim().toUpperCase(),
       contacto: contacto.trim(),
+      // Si es nuevo, enviamos el email para crear el usuario
+      email: !isEditing ? email.trim() : undefined
     };
-    const err = validateDriver(payload);
+
+    const err = validateDriver(payload, isEditing);
     setErrors(err);
     if (Object.keys(err).length) return;
+    
     onSubmit(payload);
   }
 
@@ -48,6 +66,7 @@ function DriverForm({ initial, onCancel, onSubmit }) {
           />
           {errors.rut && <p className="mt-1 text-xs text-red-600">{errors.rut}</p>}
         </div>
+        
         {/* Campo Nombre */}
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-black">Nombre</label>
@@ -59,6 +78,7 @@ function DriverForm({ initial, onCancel, onSubmit }) {
           />
           {errors.nombre && <p className="mt-1 text-xs text-red-600">{errors.nombre}</p>}
         </div>
+
         {/* Campo Licencia */}
         <div>
           <label className="block text-sm font-medium text-black">Licencia</label>
@@ -70,6 +90,7 @@ function DriverForm({ initial, onCancel, onSubmit }) {
           />
           {errors.licencia && <p className="mt-1 text-xs text-red-600">{errors.licencia}</p>}
         </div>
+
         {/* Campo Contacto */}
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-black">Contacto</label>
@@ -81,19 +102,45 @@ function DriverForm({ initial, onCancel, onSubmit }) {
           />
           {errors.contacto && <p className="mt-1 text-xs text-red-600">{errors.contacto}</p>}
         </div>
+
+        {/* SECCIÓN LOGIN AUTOMÁTICO (Solo al crear) */}
+        {!isEditing && (
+          <div className="md:col-span-3 bg-blue-50 p-3 rounded-lg border border-blue-100">
+            <h3 className="text-sm font-semibold text-blue-800 mb-2">Cuenta de Acceso (Login)</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-blue-700">Correo Electrónico</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e)=>setEmail(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-blue-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                  placeholder="chofer@empresa.cl"
+                />
+                {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
+              </div>
+              <div className="flex items-end pb-2">
+                <p className="text-xs text-blue-600">
+                  ℹ️ Se creará un usuario automáticamente con la contraseña: <strong>1234</strong>
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+
       {/* Botones */}
-      <div className="flex items-center justify-end gap-2">
+      <div className="flex items-center justify-end gap-2 pt-2">
         <button type="button" onClick={onCancel} className="rounded-lg border px-4 py-2 text-sm text-black hover:bg-black/5">Cancelar</button>
         <button type="submit" className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800">
-          {initial ? "Guardar cambios" : "Crear chofer"}
+          {initial ? "Guardar cambios" : "Crear Chofer y Usuario"}
         </button>
       </div>
     </form>
   );
 }
 
-/* ======== Tabla (Se añade isLoading y error) ======== */
+/* ======== Tabla (Sin cambios significativos) ======== */
 function DriversTable({ drivers, onEdit, onDelete, onSearch, isLoading, error }) {
   return (
     <div className="rounded-2xl border bg-white shadow-[0_8px_24px_rgba(0,0,0,.06)]">
@@ -106,7 +153,7 @@ function DriversTable({ drivers, onEdit, onDelete, onSearch, isLoading, error })
       </div>
 
       <div className="overflow-x-auto">
-        <table className="min-w-full text-sm">
+        <table className="min-w-full text-sm text-black">
           <thead className="bg-slate-50 text-left text-black/70">
             <tr>
               <th className="px-4 py-3">ID</th>
@@ -118,7 +165,6 @@ function DriversTable({ drivers, onEdit, onDelete, onSearch, isLoading, error })
             </tr>
           </thead>
           <tbody className="divide-y">
-            {/* 👈 2. Lógica de carga y error */}
             {isLoading && (
               <tr><td colSpan="6" className="px-4 py-6 text-center text-black/60">Cargando choferes...</td></tr>
             )}
@@ -127,9 +173,9 @@ function DriversTable({ drivers, onEdit, onDelete, onSearch, isLoading, error })
             )}
             {!isLoading && !error && drivers.map((d) => (
               <tr key={d.id} className="odd:bg-white even:bg-slate-50/30">
-                <td className="px-4 py-3">{d.id}</td>
+                <td className="px-4 py-3 font-mono text-xs text-gray-500">{d.id.slice(0,8)}...</td>
                 <td className="px-4 py-3">{d.rut}</td>
-                <td className="px-4 py-3">{d.nombre}</td>
+                <td className="px-4 py-3 font-medium">{d.nombre}</td>
                 <td className="px-4 py-3">{d.licencia}</td>
                 <td className="px-4 py-3">{d.contacto}</td>
                 <td className="px-4 py-3 text-right">
@@ -148,17 +194,15 @@ function DriversTable({ drivers, onEdit, onDelete, onSearch, isLoading, error })
   );
 }
 
-/* ======== Página cliente (LÓGICA DE API) ======== */
+/* ======== Página cliente (Lógica API) ======== */
 export default function DriversClient() {
-  // 👈 3. Estados para datos, carga y filtro
-  const [drivers, setDrivers]   = useState([]); // Inicia vacío
+  const [drivers, setDrivers]   = useState([]); 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError]         = useState(null);
   const [filter, setFilter]     = useState("");
   const [editing, setEditing]   = useState(null);
   const [showForm, setShowForm] = useState(false);
 
-  // 👈 4. Función para cargar datos desde la API
   const loadData = async () => {
     setIsLoading(true);
     setError(null);
@@ -174,12 +218,8 @@ export default function DriversClient() {
     }
   };
 
-  // 👈 5. Cargar datos cuando el componente se monta
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); }, []);
   
-  // 👈 6. Lógica de filtro
   const list = useMemo(() => {
     const f = filter.trim().toLowerCase();
     if (!f) return drivers;
@@ -190,7 +230,6 @@ export default function DriversClient() {
     );
   }, [drivers, filter]);
 
-  // --- (Funciones de formulario sin cambios) ---
   function handleNew() {
     setEditing(null);
     setShowForm(true);
@@ -204,7 +243,6 @@ export default function DriversClient() {
     setShowForm(true);
   }
 
-  // 👈 7. handleSubmit (POST / PUT)
   async function handleSubmit(payload) {
     setError(null);
     const url = editing ? `/api/drivers/${editing.id}` : '/api/drivers';
@@ -224,16 +262,18 @@ export default function DriversClient() {
       
       setShowForm(false);
       setEditing(null);
-      await loadData(); // Recargar la tabla
+      await loadData(); 
+      
+      if (!editing) {
+        alert("¡Chofer y Usuario creados exitosamente!\n\nClave temporal: 1234");
+      }
     } catch (err) {
       alert(`Error: ${err.message}`);
-      setError(err.message);
     }
   }
   
-  // 👈 8. handleDelete (DELETE)
   async function handleDelete(id) {
-    if (!confirm("¿Estás seguro de que quieres eliminar este chofer?")) return;
+    if (!confirm("¿Estás seguro? Esto eliminará al chofer.\n(El usuario de acceso NO se borrará automáticamente por seguridad).")) return;
     setError(null);
 
     try {
@@ -241,13 +281,12 @@ export default function DriversClient() {
       
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Error al eliminar el chofer");
+        throw new Error(data.error || "Error al eliminar");
       }
 
       await loadData();
     } catch (err) {
       alert(`Error: ${err.message}`);
-      setError(err.message);
     }
   }
 
@@ -275,8 +314,8 @@ export default function DriversClient() {
         onEdit={handleEdit} 
         onDelete={handleDelete} 
         onSearch={setFilter}
-        isLoading={isLoading} // 👈 9. Pasar estado de carga
-        error={error}       // 👈 9. Pasar estado de error
+        isLoading={isLoading} 
+        error={error}      
       />
     </div>
   );
