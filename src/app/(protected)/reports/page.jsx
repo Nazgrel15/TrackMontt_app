@@ -1,143 +1,140 @@
+// src/app/(protected)/reports/page.jsx
 "use client";
-import { useMemo, useState } from "react";
-import { toCsv, download } from "@/lib/csvUtils";
+import { useState } from "react";
 
-/** ------------------ Datos mock ------------------ **/
-const MOCK_DATA = Object.freeze([
-  // date (YYYY-MM-DD), tipo, ruta, bus, chofer, km, costo_clp, puntual (S/N)
-  { date: "2025-09-01", type: "Operacional", route: "A-12", bus: "B-01", driver: "P. Muñoz", km: 18.2, cost: 11250, onTime: "S" },
-  { date: "2025-09-01", type: "Costos",      route: "B-04", bus: "B-03", driver: "L. Soto",  km: 12.7, cost:  8350, onTime: "N" },
-  { date: "2025-09-02", type: "Operacional", route: "C-02", bus: "B-02", driver: "H. Pérez", km: 21.9, cost: 12600, onTime: "S" },
-  { date: "2025-09-03", type: "Puntualidad", route: "A-12", bus: "B-01", driver: "P. Muñoz", km: 18.3, cost: 11400, onTime: "S" },
-  { date: "2025-09-04", type: "Costos",      route: "B-04", bus: "B-03", driver: "L. Soto",  km: 13.1, cost:  8420, onTime: "S" },
-  { date: "2025-09-04", type: "Operacional", route: "D-07", bus: "B-04", driver: "C. Álvarez",km: 25.4, cost: 14900, onTime: "N" },
-  { date: "2025-09-05", type: "Puntualidad", route: "C-02", bus: "B-02", driver: "H. Pérez", km: 22.1, cost: 12750, onTime: "S" },
-]);
-
+// Tipos de reporte disponibles
 const REPORT_TYPES = ["Operacional", "Costos", "Puntualidad"];
 
-
-
-/** ------------------ Página ------------------ **/
 export default function ReportsPage() {
-  const [start, setStart] = useState("2025-09-01");
-  const [end, setEnd] = useState("2025-09-05");
+  // Fechas por defecto (inicio de mes actual hasta hoy)
+  const today = new Date().toISOString().split('T')[0];
+  const firstDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+
+  const [start, setStart] = useState(firstDay);
+  const [end, setEnd] = useState(today);
   const [type, setType] = useState("Operacional");
-  const [showPreview, setShowPreview] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  const filtered = useMemo(() => {
-    return MOCK_DATA.filter((r) => {
-      const inType = r.type === type;
-      const inFrom = start ? r.date >= start : true;
-      const inTo = end ? r.date <= end : true;
-      return inType && inFrom && inTo;
-    });
-  }, [start, end, type]);
+  // Función para descargar el reporte desde la API
+  const handleExport = async () => {
+    setLoading(true);
+    try {
+      // Construimos la URL con parámetros
+      const params = new URLSearchParams({
+        from: start,
+        to: end,
+        type: type
+      });
 
-  function handleExport() {
-    const csv = toCsv(filtered);
-    const filename = `trackmontt_${type.toLowerCase()}_${start || "all"}_${end || "all"}.csv`;
-    download(filename, csv);
-  }
+      const res = await fetch(`/api/reports?${params.toString()}`);
+      
+      if (!res.ok) {
+        const text = await res.text();
+        alert(`Error: ${text}`);
+        return;
+      }
+
+      // Convertimos la respuesta en un Blob para descargar
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      // Usamos el nombre que viene en el header o generamos uno
+      a.download = `trackmontt_${type.toLowerCase()}_${start}_${end}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error("Error descargando reporte:", error);
+      alert("Error de conexión al generar el reporte.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="mx-auto grid max-w-6xl gap-6 text-black">
+    <div className="mx-auto grid max-w-4xl gap-6 text-black">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <h1 className="text-xl font-semibold text-black">Reportes</h1>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowPreview((v) => !v)}
-            className="rounded-lg border px-3 py-2 text-sm text-black hover:bg-black/5"
-          >
-            {showPreview ? "Ocultar preview" : "Mostrar preview"}
-          </button>
-          <button
-            onClick={handleExport}
-            className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
-            title="Exportar CSV (mock)"
-          >
-            Exportar CSV
-          </button>
-        </div>
+        <h1 className="text-xl font-semibold text-black">Generador de Reportes</h1>
       </div>
 
-      {/* Filtros */}
-      <section className="rounded-2xl border bg-white p-5 shadow-[0_8px_24px_rgba(0,0,0,.06)]">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-          <div>
-            <label className="block text-sm font-medium text-black">Fecha inicio</label>
-            <input
-              type="date"
-              value={start}
-              onChange={(e) => setStart(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
-            />
+      {/* Panel de Filtros */}
+      <section className="rounded-2xl border bg-white p-6 shadow-[0_8px_24px_rgba(0,0,0,.06)]">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          
+          {/* Selector de Rango */}
+          <div className="space-y-4">
+            <h3 className="font-medium text-gray-900">1. Rango de Fechas</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Desde</label>
+                <input
+                  type="date"
+                  value={start}
+                  onChange={(e) => setStart(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Hasta</label>
+                <input
+                  type="date"
+                  value={end}
+                  onChange={(e) => setEnd(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                />
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-black">Fecha fin</label>
-            <input
-              type="date"
-              value={end}
-              onChange={(e) => setEnd(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-black focus:border-blue-500 focus:ring-blue-500"
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-black">Tipo de reporte</label>
+          {/* Selector de Tipo */}
+          <div className="space-y-4">
+            <h3 className="font-medium text-gray-900">2. Tipo de Reporte</h3>
             <select
               value={type}
               onChange={(e) => setType(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
             >
               {REPORT_TYPES.map((t) => (
-                <option key={t}>{t}</option>
+                <option key={t} value={t}>{t}</option>
               ))}
             </select>
+            <p className="text-xs text-gray-500">
+              {type === "Operacional" && "Incluye ocupación, pasajeros y estado de rutas."}
+              {type === "Costos" && "Estimación de costos por kilómetro recorrido."}
+              {type === "Puntualidad" && "Análisis de cumplimiento horario."}
+            </p>
           </div>
         </div>
 
-        {/* Resumen rápido */}
-        <div className="mt-4 text-sm text-black/60">
-          <span className="mr-4">Coincidencias: <b className="text-black">{filtered.length}</b></span>
-          <span>Rango: <b className="text-black">{start || "—"}</b> a <b className="text-black">{end || "—"}</b></span>
+        {/* Botón de Acción */}
+        <div className="mt-8 flex justify-end border-t pt-4">
+          <button
+            onClick={handleExport}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {loading ? (
+              <>
+                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Generando...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>
+                Descargar CSV
+              </>
+            )}
+          </button>
         </div>
       </section>
-
-      {/* Preview en tabla (opcional) */}
-      {showPreview && (
-        <section className="overflow-x-auto rounded-2xl border bg-white shadow-[0_8px_24px_rgba(0,0,0,.06)]">
-          <table className="min-w-full text-sm text-black">
-            <thead className="bg-slate-50 text-left text-black/70">
-              <tr>
-                <th className="px-4 py-3">Fecha</th>
-                <th className="px-4 py-3">Tipo</th>
-                <th className="px-4 py-3">Ruta</th>
-                <th className="px-4 py-3">Bus</th>
-                <th className="px-4 py-3">Chofer</th>
-                <th className="px-4 py-3">Km</th>
-                <th className="px-4 py-3">Costo (CLP)</th>
-                <th className="px-4 py-3">Puntual</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y text-black">
-              {filtered.map((r, idx) => (
-                <tr key={`${r.date}-${r.route}-${idx}`} className="odd:bg-white even:bg-slate-50/30">
-                  <td className="px-4 py-3">{r.date}</td>
-                  <td className="px-4 py-3">{r.type}</td>
-                  <td className="px-4 py-3">{r.route}</td>
-                  <td className="px-4 py-3">{r.bus}</td>
-                  <td className="px-4 py-3">{r.driver}</td>
-                  <td className="px-4 py-3">{r.km}</td>
-                  <td className="px-4 py-3">{r.cost.toLocaleString("es-CL")}</td>
-                  <td className="px-4 py-3">{r.onTime}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
     </div>
   );
 }
