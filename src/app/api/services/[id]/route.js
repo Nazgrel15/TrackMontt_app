@@ -15,7 +15,8 @@ export async function PUT(request, { params }) {
     const { fecha, turno, paradas, busId, choferId, estado } = body;
 
     const updateData = {
-      ...(fecha && { fecha: new Date(fecha) }),
+      // CAMBIO AQUÍ: Forzamos mediodía UTC si se envía una fecha
+      ...(fecha && { fecha: new Date(fecha + "T12:00:00Z") }),
       ...(turno && { turno }),
       ...(paradas && { paradas }),
       ...(busId && { busId }),

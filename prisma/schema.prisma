@@ -9,24 +9,49 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Modelo para el "Tenant" (la empresa cliente del SaaS)
+// --- ENUMS (Estandarización de valores) ---
+enum Rol {
+  Administrador
+  Supervisor
+  Chofer
+}
+
+enum EstadoServicio {
+  Programado
+  EnCurso
+  Finalizado
+  Cancelado
+}
+
+enum EstadoAsistencia {
+  Presente
+  Ausente
+  Justificado
+}
+
+enum Severidad {
+  Baja
+  Media
+  Alta
+  Critica
+}
+
+// Modelo para el "Tenant"
 model Empresa {
   id     String @id @default(cuid())
   nombre String
 
-  // --- Ticket B13: Parámetros del Sistema ---
-  toleranciaRetraso   Int    @default(15) // (minutos)
-  retencionDatosDias  Int    @default(90) // (días)
-  factorCO2           Float  @default(2.67) // (kg CO2/litro)
+  toleranciaRetraso   Int    @default(15)
+  retencionDatosDias  Int    @default(90)
+  factorCO2           Float  @default(2.67)
 
-  // --- Relaciones: Una empresa tiene muchos... ---
   usuarios     User[]
   flota        Bus[]
   choferes     Chofer[]
   paradas      Parada[]
   trabajadores Trabajador[]
   servicios    Servicio[]
-  // --- Nuevos Modelos ---
+  
   posicionesGPS LogPosicion[]
   asistencias   Asistencia[]
   alertas       Alerta[]
@@ -34,43 +59,52 @@ model Empresa {
   auditoriaLogs LogAuditoria[]
 }
 
-// Modelo de Usuario (Login) - Ticket B1
 model User {
   id             String @id @default(cuid())
   email          String 
   name           String
   hashedPassword String
-  role           String // "Administrador", "Supervisor", "Chofer"
+  
+  // CAMBIO: Usar Enum en lugar de String
+  role           Rol    @default(Supervisor)
 
   empresaId String
   empresa   Empresa @relation(fields: [empresaId], references: [id])
 
-  auditoriaLogs LogAuditoria[] // Un usuario puede generar muchos logs
+  auditoriaLogs LogAuditoria[]
+  chofer        Chofer? 
+
   @@unique([email, empresaId])
 }
 
-// --- Modelos Maestros (Tickets B3, B4, B5, B14) ---
-
 model Bus {
   id        String   @id @default(cuid())
-  patente   String   @unique
+  patente   String   @unique // Ojo: La patente debe ser única globalmente o por empresa? Normalmente global.
   capacidad Int
   proveedor String
+  
   empresaId String
   empresa   Empresa  @relation(fields: [empresaId], references: [id])
+  
   servicios Servicio[]
 }
 
 model Chofer {
   id        String    @id @default(cuid())
-  rut       String    // <-- CAMBIO: Añadir esta línea
+  rut       String    // Recomendación: Guardar sin puntos ni guion (ej: 123456789)
   nombre    String
   licencia  String
   contacto  String
+  
   empresaId String
   empresa   Empresa   @relation(fields: [empresaId], references: [id])
+  
+  userId    String?   @unique
+  user      User?     @relation(fields: [userId], references: [id]) 
+  
   servicios Servicio[]
-  incidentes Incidente[] // Un chofer puede reportar muchos incidentes
+  incidentes Incidente[]
+
   @@unique([rut, empresaId])
 }
 
@@ -79,6 +113,7 @@ model Parada {
   nombre    String
   lat       Float
   lng       Float
+  
   empresaId String
   empresa   Empresa @relation(fields: [empresaId], references: [id])
 }
@@ -88,38 +123,44 @@ model Trabajador {
   rut         String
   nombre      String
   area        String
+  
   empresaId   String
   empresa     Empresa      @relation(fields: [empresaId], references: [id])
-  asistencias Asistencia[] // Un trabajador tiene multiples registros de asistencia
+  
+  asistencias Asistencia[]
 }
-
-// --- Modelos Transaccionales (Tickets B6 en adelante) ---
 
 model Servicio {
   id       String   @id @default(cuid())
   fecha    DateTime
   turno    String
-  paradas  String[] // Array de nombres de paradas
-  estado   String   @default("Programado") // Ej: Programado, EnCurso, Finalizado, Cancelado
+  
+  // NOTA: String[] es rápido, pero si necesitas saber la hora estimada
+  // de llegada a CADA parada, necesitarías una tabla intermedia "ServicioParada".
+  // Para el MVP, String[] está bien.
+  paradas  String[] 
+
+  // CAMBIO: Enum
+  estado   EstadoServicio @default(Programado)
+
   empresaId String
-  empresa  Empresa  @relation(fields: [empresaId], references: [id])
+  empresa   Empresa  @relation(fields: [empresaId], references: [id])
+  
   busId    String
   bus      Bus      @relation(fields: [busId], references: [id])
+  
   choferId String
   chofer   Chofer   @relation(fields: [choferId], references: [id])
 
-  // Relaciones: Un servicio tiene muchas...
+  // Relaciones con borrado en cascada (si borro el servicio, se borra su historial)
   posicionesGPS LogPosicion[]
   asistencias   Asistencia[]
   alertas       Alerta[]
   incidentes    Incidente[]
   
-  @@index([fecha, estado]) // Para buscar servicios por fecha y estado
+  @@index([fecha, estado])
 }
 
-// --- NUEVOS MODELOS (Basados en Tickets Backend) ---
-
-// Ticket B7: Telemetría GPS
 model LogPosicion {
   id        String   @id @default(cuid())
   timestamp DateTime @default(now())
@@ -128,73 +169,82 @@ model LogPosicion {
   
   empresaId  String
   empresa    Empresa  @relation(fields: [empresaId], references: [id])
+  
   servicioId String
-  servicio   Servicio @relation(fields: [servicioId], references: [id])
+  servicio   Servicio @relation(fields: [servicioId], references: [id], onDelete: Cascade) // <--- Cascade
 
-  @@index([servicioId, timestamp]) // Para buscar posiciones de una ruta
+  @@index([servicioId, timestamp])
 }
 
-// Tickets B8 y B12: Asistencia
 model Asistencia {
   id     String   @id @default(cuid())
-  status String // "Presente", "Ausente", "Justificado"
-  checkIn DateTime? // Hora en que el chofer marcó (opcional)
+  
+  // CAMBIO: Enum
+  status EstadoAsistencia 
+  
+  checkIn DateTime? 
 
   empresaId     String
   empresa       Empresa    @relation(fields: [empresaId], references: [id])
+  
   servicioId    String
-  servicio      Servicio   @relation(fields: [servicioId], references: [id])
+  servicio      Servicio   @relation(fields: [servicioId], references: [id], onDelete: Cascade)
+  
   trabajadorId  String
   trabajador    Trabajador @relation(fields: [trabajadorId], references: [id])
 
-  @@unique([servicioId, trabajadorId]) // Un trabajador solo puede tener UN registro por servicio
+  @@unique([servicioId, trabajadorId])
 }
 
-// Ticket B11: Alertas
 model Alerta {
   id         String   @id @default(cuid())
   timestamp  DateTime @default(now())
-  tipo       String // "retraso", "desvio", "parada_omitida"
-  severidad  String // "rojo", "amarillo"
-  estado     String   @default("Pendiente") // "Pendiente", "En proceso", "Cerrada"
+  tipo       String 
+  
+  // CAMBIO: Enum (opcional, puede ser string si es muy variable)
+  severidad  String 
+  
+  estado     String   @default("Pendiente")
   mensaje    String   @db.Text
   
   empresaId  String
   empresa    Empresa  @relation(fields: [empresaId], references: [id])
+  
   servicioId String
-  servicio   Servicio @relation(fields: [servicioId], references: [id])
+  servicio   Servicio @relation(fields: [servicioId], references: [id], onDelete: Cascade)
   
   @@index([servicioId, estado])
 }
 
-// Ticket B15: Auditoría
 model LogAuditoria {
   id        String   @id @default(cuid())
   timestamp DateTime @default(now())
-  accion    String // ej: "login:success", "update:fleet"
+  accion    String 
   detalles  String?  @db.Text
   ip        String?
 
   empresaId String
   empresa   Empresa @relation(fields: [empresaId], references: [id])
+  
   userId    String
   user      User    @relation(fields: [userId], references: [id])
   
   @@index([userId, accion])
 }
 
-// Ticket T22 (Frontend) / Implícito en Backend
 model Incidente {
   id         String   @id @default(cuid())
   timestamp  DateTime @default(now())
-  tipo       String // "Avería Mecánica", "Retraso (Tráfico)", ...
+  tipo       String 
   nota       String   @db.Text
   urlFoto    String?
 
   empresaId  String
   empresa    Empresa  @relation(fields: [empresaId], references: [id])
+  
   servicioId String
-  servicio   Servicio @relation(fields: [servicioId], references: [id])
+  servicio   Servicio @relation(fields: [servicioId], references: [id], onDelete: Cascade)
+  
   choferId   String
   chofer     Chofer   @relation(fields: [choferId], references: [id])
   
