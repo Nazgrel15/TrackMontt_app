@@ -1,52 +1,85 @@
+// src/app/(protected)/driver/DriverClient.jsx
 "use client";
 import { useEffect, useState, useRef } from "react";
 
 export default function DriverClient() {
-  // Evitar hydration mismatch
+  // 1. Control de montaje para evitar errores de Hidratación y Build
   const [mounted, setMounted] = useState(false);
 
-  // Estado
+  // Estados
   const [services, setServices] = useState([]);
   const [activeService, setActiveService] = useState(null);
   const [isSending, setIsSending] = useState(false);
   const [logs, setLogs] = useState([]);
-  const intervalRef = useRef(null);
-
+  const [error, setError] = useState(null); 
+  
   const [workers, setWorkers] = useState([]);
   const [attendance, setAttendance] = useState({});
   const [search, setSearch] = useState("");
+  
+  const intervalRef = useRef(null);
 
-  // Marcar como montado
+  // 2. Efecto único para marcar que ya estamos en el cliente
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Carga inicial
+  // 3. Carga de datos (solo corre si mounted es true)
   useEffect(() => {
     if (!mounted) return;
 
-    fetch("/api/services")
-      .then(res => res.json())
-      .then(data => {
-        const available = data.filter(s => s.estado !== "Finalizado");
-        setServices(available);
-
-        const savedSvcId = localStorage.getItem("tm_active_svc");
-        if (savedSvcId) {
-          const found = available.find(s => s.id === savedSvcId);
-          if (found) toggleService(found, true);
+    const fetchServices = async () => {
+      try {
+        const res = await fetch("/api/services");
+        
+        // Manejo robusto de errores de API
+        if (!res.ok) {
+           // Intentamos leer el error, si falla devolvemos objeto vacío
+           const errData = await res.json().catch(() => ({}));
+           throw new Error(errData.error || `Error ${res.status}`);
         }
-      })
-      .catch(console.error);
 
-    fetch("/api/workers")
-      .then(res => res.json())
-      .then(setWorkers)
-      .catch(console.error);
+        const data = await res.json();
+
+        if (Array.isArray(data)) {
+          const available = data.filter((s) => s.estado !== "Finalizado");
+          setServices(available);
+
+          // Restaurar servicio activo si existe en localStorage
+          const savedSvcId = localStorage.getItem("tm_active_svc");
+          if (savedSvcId) {
+            const found = available.find((s) => s.id === savedSvcId);
+            if (found) toggleService(found, true);
+          }
+        } else {
+           console.error("Formato inválido:", data);
+        }
+      } catch (err) {
+        console.error(err);
+        setError("No se pudieron cargar los servicios.");
+      }
+    };
+
+    const fetchWorkers = async () => {
+      try {
+        const res = await fetch("/api/workers");
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setWorkers(data);
+          }
+        }
+      } catch (err) {
+        console.error("Error cargando trabajadores:", err);
+      }
+    };
+
+    fetchServices();
+    fetchWorkers();
 
   }, [mounted]);
 
-  // Cleanup
+  // Cleanup al desmontar
   useEffect(() => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -54,6 +87,7 @@ export default function DriverClient() {
   }, []);
 
   // --- Funciones auxiliares ---
+
   const loadAttendance = async (serviceId) => {
     try {
       const res = await fetch(`/api/attendance?serviceId=${serviceId}`, {
@@ -61,9 +95,11 @@ export default function DriverClient() {
       });
       if (res.ok) {
         const data = await res.json();
-        const map = {};
-        data.forEach((r) => (map[r.trabajadorId] = r.status));
-        setAttendance(map);
+        if (Array.isArray(data)) {
+            const map = {};
+            data.forEach((r) => (map[r.trabajadorId] = r.status));
+            setAttendance(map);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -71,7 +107,8 @@ export default function DriverClient() {
   };
 
   const sendLocation = (serviceId) => {
-    if (!navigator.geolocation) return;
+    // Verificación extra para evitar errores si navigator no existe
+    if (typeof window === 'undefined' || !navigator.geolocation) return;
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -86,20 +123,20 @@ export default function DriverClient() {
               servicioId: serviceId,
             }),
           });
-
           const time = new Date().toLocaleTimeString();
           setLogs((prev) => [`GPS OK: ${time}`, ...prev.slice(0, 2)]);
         } catch (err) {
           console.error(err);
         }
       },
-      (err) => console.error(err),
+      (err) => console.error("Error GPS:", err),
       { enableHighAccuracy: true }
     );
   };
 
   const toggleService = async (service, isRestore = false) => {
     if (activeService?.id === service.id && !isRestore) {
+      // FINALIZAR
       clearInterval(intervalRef.current);
       setIsSending(false);
       setActiveService(null);
@@ -119,6 +156,7 @@ export default function DriverClient() {
     if (activeService && activeService.id !== service.id)
       return alert("Ya tienes un servicio en curso.");
 
+    // INICIAR
     if (!isRestore) {
       await fetch(`/api/services/${service.id}`, {
         method: "PUT",
@@ -138,6 +176,8 @@ export default function DriverClient() {
   };
 
   const handleCheckIn = async (workerId) => {
+    if (!activeService) return;
+    
     const newStatus =
       attendance[workerId] === "Presente" ? "Ausente" : "Presente";
     setAttendance((prev) => ({ ...prev, [workerId]: newStatus }));
@@ -155,7 +195,7 @@ export default function DriverClient() {
       alert("Error al guardar asistencia");
       setAttendance((prev) => ({
         ...prev,
-        [workerId]: attendance[workerId],
+        [workerId]: attendance[workerId], // Revertir
       }));
     }
   };
@@ -166,19 +206,33 @@ export default function DriverClient() {
       w.rut.includes(search)
   );
 
-  // Render seguro
+  // --- RENDERIZADO SEGURO ---
+  // Si no está montado en el cliente, devolvemos null.
+  // Esto evita que el servidor renderice algo diferente al cliente.
   if (!mounted) {
     return (
-      <div className="p-10 text-center text-gray-500">
-        Cargando panel de conductor...
-      </div>
+        <div className="p-10 text-center text-gray-500">
+            Cargando entorno...
+        </div>
     );
   }
 
-  // --- Render real ---
   return (
     <div className="mx-auto grid max-w-2xl gap-6 text-black pb-20">
       <h1 className="text-xl font-semibold">Panel de Conductor</h1>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative">
+          <strong className="font-bold">Error: </strong>
+          <span className="block sm:inline">{error}</span>
+        </div>
+      )}
+
+      {!error && services.length === 0 && (
+        <p className="text-center text-gray-500 py-10">
+          No hay servicios asignados activos.
+        </p>
+      )}
 
       {services.map((s) => {
         const isActive = activeService?.id === s.id;
@@ -218,7 +272,7 @@ export default function DriverClient() {
               {isActive && (
                 <div className="text-xs font-mono text-green-700 flex items-center gap-2 mb-4">
                   <span className="animate-pulse">●</span>{" "}
-                  {logs[0] || "Conectando GPS..."}
+                  {logs[0] || "Transmitiendo ubicación..."}
                 </div>
               )}
             </div>
@@ -284,12 +338,6 @@ export default function DriverClient() {
           </div>
         );
       })}
-
-      {!activeService && services.length === 0 && (
-        <p className="text-center text-gray-500">
-          No hay servicios asignados.
-        </p>
-      )}
     </div>
   );
 }
