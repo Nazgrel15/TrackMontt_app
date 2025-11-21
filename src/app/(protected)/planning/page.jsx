@@ -1,18 +1,15 @@
 "use client";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 
-/* ======== Componente de Formulario ======== */
+/* ======== Componente de Formulario (Sin cambios) ======== */
 function ServiceForm({ initial, buses, choferes, stopsList, onCancel, onSubmit }) {
   const [fecha, setFecha]       = useState(initial?.fecha ? new Date(initial.fecha).toISOString().split('T')[0] : "");
   const [turno, setTurno]       = useState(initial?.turno ?? "Mañana");
   const [busId, setBusId]       = useState(initial?.busId ?? "");
   const [choferId, setChoferId] = useState(initial?.choferId ?? "");
   
-  // Manejo de paradas seleccionadas (ordenadas)
   const [selectedStops, setSelectedStops] = useState(initial?.paradas || []);
   const [stopToAdd, setStopToAdd] = useState("");
-
-  // Estados de validación
   const [errors, setErrors] = useState({});
 
   function addStop() {
@@ -39,7 +36,7 @@ function ServiceForm({ initial, buses, choferes, stopsList, onCancel, onSubmit }
     if (!fecha) err.fecha = "Fecha requerida";
     if (!busId) err.busId = "Bus requerido";
     if (!choferId) err.choferId = "Chofer requerido";
-    if (selectedStops.length < 2) err.paradas = "Mínimo 2 paradas (Origen -> Destino)";
+    if (selectedStops.length < 2) err.paradas = "Mínimo 2 paradas";
 
     setErrors(err);
     if (Object.keys(err).length) return;
@@ -56,81 +53,44 @@ function ServiceForm({ initial, buses, choferes, stopsList, onCancel, onSubmit }
   return (
     <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border bg-white p-5 shadow-sm text-black">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        
-        {/* Fecha y Turno */}
         <div>
           <label className="block text-sm font-medium">Fecha</label>
-          <input 
-            type="date" 
-            value={fecha} 
-            onChange={e => setFecha(e.target.value)} 
-            className="mt-1 w-full rounded-lg border px-3 py-2"
-          />
+          <input type="date" value={fecha} onChange={e => setFecha(e.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2"/>
           {errors.fecha && <p className="text-xs text-red-600">{errors.fecha}</p>}
         </div>
         <div>
           <label className="block text-sm font-medium">Turno</label>
-          <select 
-            value={turno} 
-            onChange={e => setTurno(e.target.value)} 
-            className="mt-1 w-full rounded-lg border px-3 py-2"
-          >
-            <option>Mañana</option>
-            <option>Tarde</option>
-            <option>Noche</option>
+          <select value={turno} onChange={e => setTurno(e.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2">
+            <option>Mañana</option><option>Tarde</option><option>Noche</option>
           </select>
         </div>
-
-        {/* Selectores Dinámicos */}
         <div>
           <label className="block text-sm font-medium">Bus Asignado</label>
-          <select 
-            value={busId} 
-            onChange={e => setBusId(e.target.value)} 
-            className="mt-1 w-full rounded-lg border px-3 py-2"
-          >
+          <select value={busId} onChange={e => setBusId(e.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2">
             <option value="">-- Seleccionar Bus --</option>
-            {buses.map(b => (
-              <option key={b.id} value={b.id}>{b.patente} ({b.capacidad} pax)</option>
-            ))}
+            {buses.map(b => <option key={b.id} value={b.id}>{b.patente} ({b.capacidad} pax)</option>)}
           </select>
           {errors.busId && <p className="text-xs text-red-600">{errors.busId}</p>}
         </div>
-
         <div>
           <label className="block text-sm font-medium">Chofer Asignado</label>
-          <select 
-            value={choferId} 
-            onChange={e => setChoferId(e.target.value)} 
-            className="mt-1 w-full rounded-lg border px-3 py-2"
-          >
+          <select value={choferId} onChange={e => setChoferId(e.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2">
             <option value="">-- Seleccionar Chofer --</option>
-            {choferes.map(c => (
-              <option key={c.id} value={c.id}>{c.nombre}</option>
-            ))}
+            {choferes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
           </select>
           {errors.choferId && <p className="text-xs text-red-600">{errors.choferId}</p>}
         </div>
       </div>
 
-      {/* Gestor de Paradas (Ordenable) */}
       <div className="border-t pt-4">
         <label className="block text-sm font-medium mb-2">Ruta (Paradas Ordenadas)</label>
-        
         <div className="flex gap-2 mb-2">
-          <select 
-            value={stopToAdd} 
-            onChange={e => setStopToAdd(e.target.value)}
-            className="flex-1 rounded-lg border px-3 py-2"
-          >
+          <select value={stopToAdd} onChange={e => setStopToAdd(e.target.value)} className="flex-1 rounded-lg border px-3 py-2">
             <option value="">-- Agregar Parada --</option>
-            {stopsList.map(s => (
-              <option key={s.id} value={s.nombre}>{s.nombre}</option>
-            ))}
+            {stopsList.map(s => <option key={s.id} value={s.nombre}>{s.nombre}</option>)}
           </select>
           <button type="button" onClick={addStop} className="bg-gray-100 px-4 rounded-lg hover:bg-gray-200">+</button>
         </div>
-
         <ul className="space-y-2 bg-slate-50 p-3 rounded-lg min-h-[100px]">
           {selectedStops.length === 0 && <li className="text-sm text-gray-400 text-center">Agrega paradas para armar la ruta...</li>}
           {selectedStops.map((stop, idx) => (
@@ -158,8 +118,8 @@ function ServiceForm({ initial, buses, choferes, stopsList, onCancel, onSubmit }
   );
 }
 
-/* ======== Tabla de Servicios ======== */
-function ServicesTable({ services, onDelete }) {
+/* ======== Tabla de Servicios (Actualizada con botón Clonar) ======== */
+function ServicesTable({ services, onDelete, onClone }) {
   return (
     <div className="overflow-x-auto rounded-2xl border bg-white shadow-sm">
       <table className="min-w-full text-sm text-left">
@@ -199,7 +159,16 @@ function ServicesTable({ services, onDelete }) {
                   {s.estado}
                 </span>
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-4 py-3 text-right space-x-2">
+                {/* ✨ Botón Clonar Nuevo ✨ */}
+                <button 
+                  onClick={() => onClone(s)}
+                  className="text-blue-600 hover:bg-blue-50 px-3 py-1 rounded border border-blue-200 transition"
+                  title="Usar como plantilla para otro día"
+                >
+                  Clonar
+                </button>
+
                 <button 
                   onClick={() => onDelete(s.id)}
                   className="text-red-600 hover:bg-red-50 px-3 py-1 rounded border border-transparent hover:border-red-100 transition"
@@ -218,44 +187,40 @@ function ServicesTable({ services, onDelete }) {
   );
 }
 
-/* ======== Página Principal ======== */
+/* ======== Página Principal (Lógica actualizada) ======== */
 export default function PlanningPage() {
-  // Datos maestros
   const [buses, setBuses] = useState([]);
   const [choferes, setChoferes] = useState([]);
   const [stopsList, setStopsList] = useState([]);
-  
-  // Datos transaccionales
   const [services, setServices] = useState([]);
-  
-  // UI State
   const [showForm, setShowForm] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Carga inicial de todos los datos
+  // Carga inicial de datos (Reutilizada, pero moví la función loadAll afuera del useEffect para reusarla)
+  const loadAll = async () => {
+    setIsLoading(true);
+    try {
+      const [resBuses, resDrivers, resStops, resServices] = await Promise.all([
+        fetch("/api/buses"),
+        fetch("/api/drivers"),
+        fetch("/api/stops"),
+        fetch("/api/services")
+      ]);
+
+      if (resBuses.ok) setBuses(await resBuses.json());
+      if (resDrivers.ok) setChoferes(await resDrivers.json());
+      if (resStops.ok) setStopsList(await resStops.json());
+      if (resServices.ok) setServices(await resServices.json());
+
+    } catch (e) {
+      console.error("Error cargando datos:", e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        const [resBuses, resDrivers, resStops, resServices] = await Promise.all([
-          fetch("/api/buses"),
-          fetch("/api/drivers"),
-          fetch("/api/stops"),
-          fetch("/api/services")
-        ]);
-
-        if (resBuses.ok) setBuses(await resBuses.json());
-        if (resDrivers.ok) setChoferes(await resDrivers.json());
-        if (resStops.ok) setStopsList(await resStops.json());
-        if (resServices.ok) setServices(await resServices.json());
-
-      } catch (e) {
-        console.error("Error cargando datos:", e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
+    loadAll();
   }, []);
 
   const handleCreate = async (payload) => {
@@ -267,16 +232,60 @@ export default function PlanningPage() {
       });
       
       if (res.ok) {
-        const newSvc = await res.json();
-        // Recargar la lista completa para traer las relaciones (bus/chofer) correctamente populadas
-        const refresh = await fetch("/api/services");
-        setServices(await refresh.json());
+        await loadAll(); // Recargamos todo
         setShowForm(false);
       } else {
         alert("Error al crear servicio");
       }
     } catch (e) {
       alert(e.message);
+    }
+  };
+
+
+// ✨ Función handleClone Corregida (Uso de Hora Local) ✨
+  const handleClone = async (service) => {
+    const d = new Date(service.fecha);
+
+    // 1. Obtener la fecha LOCAL (tal cual se ve en la tabla/navegador)
+    // Usamos padStart para asegurar formato "01", "05", etc.
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const serviceDateStr = `${year}-${month}-${day}`; // YYYY-MM-DD Local
+
+    // 2. Crear fecha base a MEDIODÍA (12:00) usando la fecha local
+    // Esto evita problemas de cambio de día por zona horaria
+    const baseDate = new Date(serviceDateStr + "T12:00:00");
+
+    // 3. Sumar 1 día
+    baseDate.setDate(baseDate.getDate() + 1);
+    
+    // Para el input default, usamos toISOString().split('T')[0] 
+    // Como baseDate es mediodía, toISOString() siempre devolverá el mismo día (seguro)
+    const defaultDate = baseDate.toISOString().split('T')[0];
+
+    // Preguntamos al usuario
+    const newDate = prompt(`Clonar servicio del ${serviceDateStr}.\nFecha para el nuevo servicio:`, defaultDate);
+    
+    if (!newDate) return; // Cancelado
+
+    try {
+      const res = await fetch(`/api/services/clone/${service.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fecha: newDate })
+      });
+
+      if (res.ok) {
+        alert("¡Servicio clonado exitosamente!");
+        await loadAll(); 
+      } else {
+        const err = await res.json();
+        alert("Error al clonar: " + (err.error || "Desconocido"));
+      }
+    } catch (e) {
+      alert("Error de conexión al clonar.");
     }
   };
 
@@ -317,7 +326,11 @@ export default function PlanningPage() {
       {isLoading ? (
         <p className="text-center text-gray-500 py-10">Cargando planificador...</p>
       ) : (
-        <ServicesTable services={services} onDelete={handleDelete} />
+        <ServicesTable 
+          services={services} 
+          onDelete={handleDelete} 
+          onClone={handleClone} // 👈 Pasamos la función nueva
+        />
       )}
     </div>
   );
