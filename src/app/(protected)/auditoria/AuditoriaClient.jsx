@@ -1,47 +1,74 @@
 // src/app/(protected)/auditoria/AuditoriaClient.jsx
 "use client";
 
-import { useState, useMemo } from "react";
-// Importamos los mocks
-import { mockAuditoria, auditActions } from "@/lib/MockData";
-// Importamos las funciones CSV de los otros reportes
-import { toCsv, download } from "@/lib/csvUtils"; // 👈 Crearemos este archivo
+import { useState, useEffect, useMemo } from "react";
+import { toCsv, download } from "@/lib/csvUtils";
+
+// Mapeo de acciones a texto legible (opcional)
+const actionLabels = {
+  'login:success': 'Inicio de Sesión',
+  'update:settings': 'Cambio de Configuración',
+  'update:fleet': 'Gestión de Flota',
+  'create:service': 'Creación de Servicio',
+  // ... otros códigos que definas
+};
 
 export default function AuditoriaClient() {
-  const [logs, setLogs] = useState(() => [...mockAuditoria]);
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
   
-  // AC 1: Estados de los filtros
   const [userFilter, setUserFilter] = useState("");
   const [actionFilter, setActionFilter] = useState("todos");
   const [dateFilter, setDateFilter] = useState("");
 
-  // AC 1: Lógica de filtrado
+  // 1. Cargar datos reales
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        const res = await fetch("/api/audit");
+        if (res.ok) {
+          const data = await res.json();
+          setLogs(data);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLogs();
+  }, []);
+
+  // 2. Filtrado en cliente
   const filteredList = useMemo(() => {
     return logs.filter(log => {
       const fUser = userFilter.trim().toLowerCase();
       const fAction = actionFilter;
       const fDate = dateFilter;
+      
+      // Comparar fechas (YYYY-MM-DD)
+      const logDate = new Date(log.timestamp).toISOString().split('T')[0];
 
       const userMatch = !fUser || log.user.toLowerCase().includes(fUser);
       const actionMatch = fAction === 'todos' || log.action === fAction;
-      const dateMatch = !fDate || log.timestamp.startsWith(fDate);
+      const dateMatch = !fDate || logDate === fDate;
 
       return userMatch && actionMatch && dateMatch;
     });
   }, [logs, userFilter, actionFilter, dateFilter]);
 
-  // AC 3: Lógica de exportación
   const handleExport = () => {
-    const filename = `reporte_auditoria_${new Date().toISOString().split('T')[0]}.csv`;
+    const filename = `auditoria_${new Date().toISOString().split('T')[0]}.csv`;
     download(filename, toCsv(filteredList));
   };
   
-  // Helper para formatear fecha
   const formatTimestamp = (iso) => new Date(iso).toLocaleString("es-CL");
+
+  // Obtener lista única de acciones para el select
+  const uniqueActions = [...new Set(logs.map(l => l.action))];
 
   return (
     <div className="mx-auto grid max-w-6xl gap-6 text-black">
-      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-black">Auditoría de Accesos y Acciones</h1>
         <button
@@ -52,8 +79,8 @@ export default function AuditoriaClient() {
         </button>
       </div>
       
-      {/* AC 1: Filtros */}
-      <section className="rounded-2xl border bg-white p-5 shadow-[0_8px_24px_rgba(0,0,0,.06)]">
+      {/* Filtros */}
+      <section className="rounded-2xl border bg-white p-5 shadow-sm">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div>
             <label className="block text-sm font-medium text-black">Filtrar por Fecha</label>
@@ -61,17 +88,17 @@ export default function AuditoriaClient() {
               type="date"
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-black">Filtrar por Usuario (email)</label>
+            <label className="block text-sm font-medium text-black">Filtrar por Usuario</label>
             <input
               type="text"
               value={userFilter}
               onChange={(e) => setUserFilter(e.target.value)}
-              placeholder="kevin@trackmontt.cl"
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
+              placeholder="ej. admin@trackmontt.cl"
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
           <div>
@@ -79,19 +106,19 @@ export default function AuditoriaClient() {
             <select
               value={actionFilter}
               onChange={(e) => setActionFilter(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
             >
               <option value="todos">Todas las acciones</option>
-              {Object.entries(auditActions).map(([key, value]) => (
-                <option key={key} value={key}>{value}</option>
+              {uniqueActions.map((act) => (
+                <option key={act} value={act}>{actionLabels[act] || act}</option>
               ))}
             </select>
           </div>
         </div>
       </section>
 
-      {/* AC 2: Tabla de registros */}
-      <div className="overflow-x-auto rounded-2xl border bg-white shadow-[0_8px_24px_rgba(0,0,0,.06)]">
+      {/* Tabla */}
+      <div className="overflow-x-auto rounded-2xl border bg-white shadow-sm">
         <table className="min-w-full text-sm">
           <thead className="bg-slate-50 text-left text-black/70">
             <tr>
@@ -103,18 +130,25 @@ export default function AuditoriaClient() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
+            {loading && <tr><td colSpan="5" className="px-4 py-8 text-center text-gray-400">Cargando logs...</td></tr>}
+            
+            {!loading && filteredList.length === 0 && (
+              <tr><td colSpan="5" className="px-4 py-8 text-center text-gray-400">No hay registros.</td></tr>
+            )}
+
             {filteredList.map((log) => (
-              <tr key={log.id} className="odd:bg-white even:bg-slate-50/30">
-                <td className="px-4 py-3 whitespace-nowrap">{formatTimestamp(log.timestamp)}</td>
-                <td className="px-4 py-3">{log.user}</td>
-                <td className="px-4 py-3">{auditActions[log.action] || log.action}</td>
-                <td className="px-4 py-3">{log.details}</td>
-                <td className="px-4 py-3">{log.ip}</td>
+              <tr key={log.id} className="hover:bg-slate-50">
+                <td className="px-4 py-3 whitespace-nowrap text-gray-500">{formatTimestamp(log.timestamp)}</td>
+                <td className="px-4 py-3 font-medium">{log.user}</td>
+                <td className="px-4 py-3">
+                    <span className="px-2 py-1 bg-slate-100 rounded text-xs font-mono border border-slate-200">
+                        {actionLabels[log.action] || log.action}
+                    </span>
+                </td>
+                <td className="px-4 py-3 text-gray-600">{log.details}</td>
+                <td className="px-4 py-3 font-mono text-xs text-gray-400">{log.ip}</td>
               </tr>
             ))}
-            {filteredList.length === 0 && (
-              <tr><td colSpan="5" className="px-4 py-6 text-center text-black/60">No hay registros que coincidan con los filtros.</td></tr>
-            )}
           </tbody>
         </table>
       </div>

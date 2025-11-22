@@ -1,6 +1,5 @@
 // src/lib/csvUtils.js
 
-// (Copiado desde ReportsPage)
 export function toCsv(rows) {
   if (!rows || rows.length === 0) return "";
   const headers = Object.keys(rows[0]);
@@ -21,7 +20,10 @@ export function toCsv(rows) {
 }
 
 export function download(filename, text) {
-  const blob = new Blob([text], { type: "text/csv;charset=utf-8;" });
+  // ✨ CORRECCIÓN AQUÍ: Agregamos \uFEFF al inicio
+  // Esto le dice a Excel: "¡Hola! Soy un archivo UTF-8, respeta mis tildes".
+  const blob = new Blob(["\uFEFF" + text], { type: "text/csv;charset=utf-8;" });
+  
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

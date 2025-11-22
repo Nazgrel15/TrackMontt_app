@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import { logAudit } from "@/lib/audit"; // 👈 Importamos el helper de auditoría
 
 const prisma = new PrismaClient();
 
@@ -15,13 +16,9 @@ export async function POST(request) {
     }
 
     // 1. Buscar al usuario en la BD
-    // ================== CAMBIO AQUÍ ==================
-    // Usamos findFirst en lugar de findUnique porque
-    // el email solo es único en combinación con empresaId.
     const user = await prisma.user.findFirst({ 
       where: { email: email.toLowerCase() },
     });
-    // ===============================================
 
     if (!user) {
       return NextResponse.json({ error: "Credenciales inválidas" }, { status: 401 });
@@ -33,20 +30,20 @@ export async function POST(request) {
       return NextResponse.json({ error: "Credenciales inválidas" }, { status: 401 });
     }
 
-    // 3. Crear el JWT (AC del Ticket B1)
+    // 3. Crear el JWT
     const payload = {
       userId: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
-      empresaId: user.empresaId, // <-- ¡La clave del SaaS!
+      empresaId: user.empresaId,
     };
 
     const token = jwt.sign(payload, process.env.JWT_SECRET, {
       expiresIn: "8h",
     });
 
-    // 4. Devolver respuesta OK con los datos del usuario
+    // 4. Devolver respuesta OK
     const response = NextResponse.json(payload);
 
     // 5. Establecer la cookie de forma segura
@@ -58,11 +55,25 @@ export async function POST(request) {
       sameSite: "Lax",
     });
 
+    // 6. REGISTRAR AUDITORÍA (Ticket B15)
+    // Construimos un objeto de sesión mínimo ya que el usuario aún no tiene la cookie
+    const sessionForAudit = { 
+        userId: user.id, 
+        empresaId: user.empresaId 
+    };
+    
+    // No usamos 'await' bloqueante para no retrasar el login al usuario,
+    // o usamos await si queremos asegurar que se guarde antes de responder.
+    await logAudit({
+        session: sessionForAudit,
+        accion: "login:success",
+        detalles: "Inicio de sesión exitoso vía Web"
+    });
+
     return response;
 
   } catch (error) {
     console.error("Error en /api/login:", error);
-    // Verificar si es un error de Prisma conocido
     if (error.code) {
        return NextResponse.json({ error: `Error de base de datos: ${error.code}` }, { status: 500 });
     }
