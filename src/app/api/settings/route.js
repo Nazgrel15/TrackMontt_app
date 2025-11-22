@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { getApiSession } from "@/lib/api-auth";
+import { logAudit } from "@/lib/audit"; // 👈 Importamos el helper de auditoría
 
 const prisma = new PrismaClient();
 
@@ -16,8 +17,8 @@ export async function GET(request) {
         toleranciaRetraso: true,
         retencionDatosDias: true,
         factorCO2: true,
-        ventanaInicio: true, // ✨ Nuevo
-        ventanaFin: true     // ✨ Nuevo
+        ventanaInicio: true,
+        ventanaFin: true
       }
     });
 
@@ -36,7 +37,6 @@ export async function PUT(request) {
     const tolerancia = parseInt(body.toleranciaRetraso);
     const retencion = parseInt(body.retencionDatosDias);
     const co2 = parseFloat(body.factorCO2);
-    // ✨ Capturamos los nuevos valores
     const { ventanaInicio, ventanaFin } = body; 
 
     if (isNaN(tolerancia) || isNaN(retencion) || isNaN(co2)) {
@@ -49,9 +49,16 @@ export async function PUT(request) {
         toleranciaRetraso: tolerancia,
         retencionDatosDias: retencion,
         factorCO2: co2,
-        ventanaInicio: ventanaInicio, // ✨ Guardamos
-        ventanaFin: ventanaFin        // ✨ Guardamos
+        ventanaInicio: ventanaInicio,
+        ventanaFin: ventanaFin
       }
+    });
+
+    // REGISTRAR AUDITORÍA (Ticket B15)
+    await logAudit({
+        session,
+        accion: "update:settings",
+        detalles: `Actualizó parámetros: Tolerancia=${tolerancia}, Retención=${retencion}, CO2=${co2}`
     });
 
     return NextResponse.json({ success: true, data: updated });
