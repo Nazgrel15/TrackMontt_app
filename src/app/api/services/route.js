@@ -2,9 +2,11 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { getApiSession } from "@/lib/api-auth";
+import { triggerWebhooks } from "@/lib/webhooks"; // 👈 Importante para Ticket B19
 
 const prisma = new PrismaClient();
 
+// GET: Listar servicios (con filtro de privacidad para choferes)
 export async function GET(request) {
   const { session, error } = await getApiSession(request, { requireAdmin: false });
   if (error) return error;
@@ -17,7 +19,6 @@ export async function GET(request) {
 
     // 2. LOGICA DE PRIVACIDAD: Si es Chofer, filtramos por SU perfil
     if (session.role === 'Chofer') {
-      // Buscamos el perfil de Chofer asociado a este usuario (userId)
       const choferPerfil = await prisma.chofer.findFirst({
         where: { 
           userId: session.userId,
@@ -26,15 +27,13 @@ export async function GET(request) {
       });
 
       if (choferPerfil) {
-        // Si encontramos el perfil, filtramos los servicios por SU id de chofer
         whereClause.choferId = choferPerfil.id;
       } else {
-        // Si es rol Chofer pero no tiene perfil creado, no debe ver nada
         return NextResponse.json([]); 
       }
     }
 
-    // 3. Consulta a la BD con el filtro dinámico
+    // 3. Consulta a la BD
     const services = await prisma.servicio.findMany({
       where: whereClause,
       include: {
@@ -47,7 +46,47 @@ export async function GET(request) {
     return NextResponse.json(services);
 
   } catch (err) {
-    console.error("Error API Services:", err);
+    console.error("Error API Services GET:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+// POST: Crear nuevo servicio (Restaurado y con Webhooks)
+export async function POST(request) {
+  const { session, error } = await getApiSession(request, { requireAdmin: false }); // Supervisores también crean
+  if (error) return error;
+
+  try {
+    const body = await request.json();
+    const { fecha, turno, paradas, busId, choferId } = body;
+
+    // Validaciones básicas
+    if (!fecha || !turno || !busId || !choferId || !paradas?.length) {
+      return NextResponse.json({ error: "Faltan campos obligatorios" }, { status: 400 });
+    }
+
+    // Crear el servicio
+    const newService = await prisma.servicio.create({
+      data: {
+        fecha: new Date(fecha),
+        turno,
+        paradas,
+        estado: "Programado",
+        empresaId: session.empresaId,
+        busId,
+        choferId
+      },
+      include: { bus: true, chofer: true }
+    });
+
+    // ✨ DISPARAR WEBHOOK (Ticket B19) ✨
+    // Esto avisa a sistemas externos que se creó un servicio
+    triggerWebhooks("service.created", newService, session.empresaId);
+
+    return NextResponse.json(newService, { status: 201 });
+
+  } catch (err) {
+    console.error("Error API Services POST:", err);
+    return NextResponse.json({ error: "Error al crear servicio" }, { status: 500 });
   }
 }

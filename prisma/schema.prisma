@@ -49,6 +49,7 @@ model Empresa {
   // ✨ NUEVOS CAMPOS ✨
   ventanaInicio       String @default("06:00") // Formato HH:MM
   ventanaFin          String @default("23:00") // Formato HH:MM
+  
 
   // ✨ NUEVOS CAMPOS SSO (Ticket B17) ✨
   ssoEnabled    Boolean @default(false)
@@ -69,6 +70,7 @@ model Empresa {
   alertas       Alerta[]
   incidentes    Incidente[]
   auditoriaLogs LogAuditoria[]
+  webhooks      Webhook[] // ✨ Nueva relación
 }
 
 model User {
@@ -261,4 +263,16 @@ model Incidente {
   chofer     Chofer   @relation(fields: [choferId], references: [id])
   
   @@index([servicioId])
+}
+
+model Webhook {
+  id        String   @id @default(cuid())
+  url       String   // URL destino (ej: https://api.empresa.cl/hooks)
+  events    String[] // Lista de eventos (ej: ["service.created", "incident.created"])
+  active    Boolean  @default(true)
+  
+  empresaId String
+  empresa   Empresa  @relation(fields: [empresaId], references: [id])
+  
+  createdAt DateTime @default(now())
 }
