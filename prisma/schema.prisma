@@ -50,6 +50,13 @@ model Empresa {
   ventanaInicio       String @default("06:00") // Formato HH:MM
   ventanaFin          String @default("23:00") // Formato HH:MM
 
+  // ✨ NUEVOS CAMPOS SSO (Ticket B17) ✨
+  ssoEnabled    Boolean @default(false)
+  ssoProvider   String? // ej: "oidc", "azure-ad", "google"
+  ssoClientId   String?
+  ssoClientSecret String?
+  ssoIssuerUrl  String? // URL del proveedor de identidad
+  
   // ... resto de relaciones ...
   usuarios     User[]
   flota        Bus[]

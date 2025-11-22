@@ -13,6 +13,7 @@ const navByRole = {
     { href: "/alerts", label: "Alertas" },
     { href: "/reports", label: "Reportes" },
     { href: "/admin", label: "Administración" },
+    { href: "/admin/integrations", label: "Integraciones" },
     { href: "/admin/fleet", label: "Flota" },
     { href: "/admin/drivers", label: "Choferes" },
     { href: "/admin/stops", label: "Paradas" },
