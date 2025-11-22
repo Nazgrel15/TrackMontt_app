@@ -41,17 +41,22 @@ model Empresa {
   id     String @id @default(cuid())
   nombre String
 
+  // Parámetros Operacionales
   toleranciaRetraso   Int    @default(15)
   retencionDatosDias  Int    @default(90)
   factorCO2           Float  @default(2.67)
+  
+  // ✨ NUEVOS CAMPOS ✨
+  ventanaInicio       String @default("06:00") // Formato HH:MM
+  ventanaFin          String @default("23:00") // Formato HH:MM
 
+  // ... resto de relaciones ...
   usuarios     User[]
   flota        Bus[]
   choferes     Chofer[]
   paradas      Parada[]
   trabajadores Trabajador[]
   servicios    Servicio[]
-  
   posicionesGPS LogPosicion[]
   asistencias   Asistencia[]
   alertas       Alerta[]
