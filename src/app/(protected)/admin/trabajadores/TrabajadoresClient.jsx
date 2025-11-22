@@ -1,171 +1,223 @@
+// src/app/(protected)/admin/trabajadores/TrabajadoresClient.jsx
 "use client";
-import { useState, useMemo } from "react";
-import Papa from "papaparse"; // 👈 Importamos la librería
+import { useState, useEffect, useMemo } from "react";
+import Papa from "papaparse";
 
-// Datos mock iniciales
-const INITIAL_TRABAJADORES = Object.freeze([
-  { id: "T-001", rut: "11.111.111-1", nombre: "Ana González", area: "Planta" },
-  { id: "T-002", rut: "22.222.222-2", nombre: "Bruno Díaz", area: "Cultivo" },
-]);
-
-// --- Función para validar cada fila del CSV ---
-// (Criterio de Aceptación 2: Validación)
+// Helper simple de validación
 function validateRow(row, index) {
   const errors = [];
-  // Usamos .trim() para limpiar espacios en blanco
-  if (!row.rut || row.rut.trim() === "") {
-    errors.push(`Fila ${index + 2}: Falta RUT.`); // +2 porque la Fila 1 es cabecera
-  }
-  if (!row.nombre || row.nombre.trim() === "") {
-    errors.push(`Fila ${index + 2}: Falta nombre.`);
-  }
-  if (!row.area || row.area.trim() === "") {
-    errors.push(`Fila ${index + 2}: Falta área.`);
-  }
-  // Aquí podrías agregar más validaciones (ej. formato de RUT)
+  if (!row.rut?.trim()) errors.push(`Fila ${index + 2}: Falta RUT.`);
+  if (!row.nombre?.trim()) errors.push(`Fila ${index + 2}: Falta nombre.`);
   return errors;
 }
 
-
 export default function TrabajadoresClient() {
-  const [trabajadores, setTrabajadores] = useState(() => [...INITIAL_TRABAJADORES]);
+  const [trabajadores, setTrabajadores] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
-  const [validationErrors, setValidationErrors] = useState([]);
-  const [successMessage, setSuccessMessage] = useState("");
+  
+  // Estados para carga CSV
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadFeedback, setUploadFeedback] = useState({ type: '', msg: '' });
 
-  // Lista filtrada para la tabla
-  const list = useMemo(() => {
-    const f = filter.trim().toLowerCase();
-    if (!f) return trabajadores;
-    return trabajadores.filter(t =>
-      t.nombre.toLowerCase().includes(f) ||
-      t.rut.toLowerCase().includes(f) ||
-      t.area.toLowerCase().includes(f)
-    );
-  }, [trabajadores, filter]);
+  // Estados para formulario manual (Crear/Editar)
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [formData, setFormData] = useState({ rut: "", nombre: "", area: "" });
 
-  // --- Manejador del archivo (Criterio de Aceptación 1: Subida) ---
+  // 1. Cargar datos iniciales
+  const loadWorkers = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/workers");
+      if (res.ok) setTrabajadores(await res.json());
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadWorkers(); }, []);
+
+  // 2. Manejo de CSV (Carga Masiva)
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
     setIsUploading(true);
-    setValidationErrors([]);
-    setSuccessMessage("");
+    setUploadFeedback({ type: 'info', msg: 'Procesando archivo...' });
 
-    // Usamos PapaParse
     Papa.parse(file, {
-      header: true, // Trata la primera fila como cabecera (rut, nombre, area)
+      header: true,
       skipEmptyLines: true,
-      encoding: "ISO-8859-1",
-      complete: (results) => {
+      encoding: "UTF-8", // Ajustar según origen (Excel suele usar esto)
+      complete: async (results) => {
         const data = results.data;
         const errors = [];
-        const nuevosTrabajadores = [];
+        const validRows = [];
 
-        // Validamos fila por fila
         data.forEach((row, index) => {
           const rowErrors = validateRow(row, index);
-          if (rowErrors.length > 0) {
-            errors.push(...rowErrors);
-          } else {
-            // (Mock) Si pasa la validación, lo preparamos para agregarlo
-            nuevosTrabajadores.push({
-              id: `T-${String(Math.random()).slice(2, 7)}`, // ID de prueba
-              rut: row.rut,
-              nombre: row.nombre,
-              area: row.area,
-            });
-          }
+          if (rowErrors.length > 0) errors.push(...rowErrors);
+          else validRows.push({ 
+            rut: row.rut.trim(), 
+            nombre: row.nombre.trim(), 
+            area: row.area?.trim() || "General" 
+          });
         });
 
         if (errors.length > 0) {
-          // Si hay errores, los mostramos y no importamos nada
-          setValidationErrors(errors);
-          setSuccessMessage("");
-        } else {
-          // (Criterio de Aceptación 3: Registro en tabla)
-          // ÉXITO: Agregamos los nuevos trabajadores al estado (simulando la BD)
-          setTrabajadores(prev => [...prev, ...nuevosTrabajadores]);
-          setSuccessMessage(`¡${nuevosTrabajadores.length} trabajadores importados con éxito!`);
-          setValidationErrors([]);
+          setUploadFeedback({ type: 'error', msg: `Errores en CSV: ${errors.slice(0, 3).join(", ")}...` });
+          setIsUploading(false);
+          return;
         }
-        setIsUploading(false);
+
+        // Enviar a la API (Bulk Insert)
+        try {
+          const res = await fetch("/api/workers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(validRows)
+          });
+          
+          const responseData = await res.json();
+          
+          if (res.ok) {
+            setUploadFeedback({ type: 'success', msg: responseData.message || "Importación exitosa." });
+            loadWorkers();
+          } else {
+            setUploadFeedback({ type: 'error', msg: responseData.error || "Error en el servidor." });
+          }
+        } catch (e) {
+          setUploadFeedback({ type: 'error', msg: "Error de conexión." });
+        } finally {
+          setIsUploading(false);
+          event.target.value = null; // Reset input
+        }
       },
       error: (err) => {
-        setValidationErrors([`Error al leer el archivo: ${err.message}`]);
+        setUploadFeedback({ type: 'error', msg: `Error lectura: ${err.message}` });
         setIsUploading(false);
       }
     });
-
-    // Limpiamos el input para que se pueda subir el mismo archivo otra vez
-    event.target.value = null;
   };
+
+  // 3. Manejo de Formulario Manual
+  // ...
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const method = editingId ? "PUT" : "POST";
+    const url = editingId ? `/api/workers/${editingId}` : "/api/workers";
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData)
+      });
+
+      const data = await res.json(); // 👈 Leemos la respuesta SIEMPRE
+
+      if (res.ok) {
+        loadWorkers();
+        setIsFormOpen(false);
+        setFormData({ rut: "", nombre: "", area: "" });
+        setEditingId(null);
+      } else {
+        // 👈 Mostramos el error específico que viene del backend
+        alert(`Error: ${data.error || "No se pudo guardar el trabajador"}`);
+      }
+    } catch (err) {
+      alert("Error de conexión con el servidor.");
+    }
+  };
+  // ...
+
+  const handleDelete = async (id) => {
+    if (!confirm("¿Eliminar trabajador? Se borrará su historial de asistencia.")) return;
+    try {
+      const res = await fetch(`/api/workers/${id}`, { method: "DELETE" });
+      if (res.ok) loadWorkers();
+      else alert("Error al eliminar");
+    } catch (e) { alert("Error de conexión"); }
+  };
+
+  const openEdit = (worker) => {
+    setFormData({ rut: worker.rut, nombre: worker.nombre, area: worker.area });
+    setEditingId(worker.id);
+    setIsFormOpen(true);
+  };
+
+  const filteredList = useMemo(() => {
+    const f = filter.trim().toLowerCase();
+    if (!f) return trabajadores;
+    return trabajadores.filter(t =>
+      t.nombre.toLowerCase().includes(f) || t.rut.toLowerCase().includes(f)
+    );
+  }, [trabajadores, filter]);
 
   return (
     <div className="mx-auto grid max-w-6xl gap-6 text-black">
-      {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-black">Administración — Trabajadores</h1>
+        <h1 className="text-xl font-semibold">Gestión de Trabajadores</h1>
+        <button 
+          onClick={() => { setIsFormOpen(true); setEditingId(null); setFormData({ rut: "", nombre: "", area: "" }); }}
+          className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
+        >
+          + Nuevo
+        </button>
       </div>
 
-      {/* Sección de Carga de Archivo */}
-      <section className="rounded-2xl border bg-white p-5 shadow-[0_8px_24px_rgba(0,0,0,.06)]">
-        <h2 className="text-lg font-medium text-black">Importar desde CSV</h2>
-        <p className="mt-1 text-sm text-black/60">
-          Sube un archivo .csv con las columnas exactas: <b>rut</b>, <b>nombre</b>, <b>area</b>.
-        </p>
-        
+      {/* Formulario Manual */}
+      {isFormOpen && (
+        <form onSubmit={handleSubmit} className="rounded-2xl border bg-slate-50 p-4 space-y-3 shadow-inner">
+          <h3 className="font-semibold text-sm">{editingId ? "Editar Trabajador" : "Nuevo Trabajador"}</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <input placeholder="RUT (ej. 12.345.678-9)" className="rounded border p-2" required 
+              value={formData.rut} onChange={e => setFormData({...formData, rut: e.target.value})} />
+            <input placeholder="Nombre Completo" className="rounded border p-2" required 
+              value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} />
+            <input placeholder="Área (ej. Planta)" className="rounded border p-2" 
+              value={formData.area} onChange={e => setFormData({...formData, area: e.target.value})} />
+          </div>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setIsFormOpen(false)} className="px-3 py-1 text-sm border rounded bg-white">Cancelar</button>
+            <button type="submit" className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700">Guardar</button>
+          </div>
+        </form>
+      )}
+
+      {/* Importador CSV */}
+      <section className="rounded-2xl border bg-white p-5 shadow-sm">
+        <h2 className="text-lg font-medium mb-2">Carga Masiva (CSV)</h2>
         <input
           type="file"
           accept=".csv"
           onChange={handleFileChange}
           disabled={isUploading}
-          className="mt-4 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm
-                     file:mr-3 file:rounded-md file:border-0
-                     file:bg-blue-50 file:py-1 file:px-3
-                     file:text-sm file:font-medium file:text-blue-700
-                     hover:file:bg-blue-100"
+          className="text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
         />
-
-        {/* Mensajes de Estado */}
-        {isUploading && <p className="mt-2 text-sm text-blue-600">Procesando archivo, espere...</p>}
-        
-        {successMessage && (
-          <div className="mt-3 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-700">
-            {successMessage}
-          </div>
-        )}
-
-        {validationErrors.length > 0 && (
-          <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            <p className="font-semibold">Se encontraron errores y no se pudo importar:</p>
-            <ul className="mt-1 list-disc pl-5">
-              {/* Mostramos solo los primeros 5 errores para no saturar */}
-              {validationErrors.slice(0, 5).map((err, i) => <li key={i}>{err}</li>)}
-              {validationErrors.length > 5 && <li>...y {validationErrors.length - 5} errores más.</li>}
-            </ul>
-          </div>
+        {uploadFeedback.msg && (
+          <p className={`mt-2 text-sm ${uploadFeedback.type === 'error' ? 'text-red-600' : 'text-green-600'}`}>
+            {uploadFeedback.msg}
+          </p>
         )}
       </section>
 
-      {/* Tabla de Trabajadores (Criterio de Aceptación 3) */}
-      <div className="rounded-2xl border bg-white shadow-[0_8px_24px_rgba(0,0,0,.06)]">
-        <div className="flex flex-wrap items-center justify-between gap-3 p-4">
-          <h2 className="text-lg font-medium text-black">Trabajadores Registrados ({list.length})</h2>
-          <input
-            onChange={(e) => setFilter(e.target.value)}
-            placeholder="Buscar por nombre/RUT/área…"
-            className="w-72 max-w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
+      {/* Tabla */}
+      <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+        <div className="p-4 border-b">
+          <input 
+            placeholder="Buscar..." 
+            className="w-full md:w-1/3 rounded border p-2 text-sm"
+            onChange={e => setFilter(e.target.value)}
           />
         </div>
-        
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-slate-50 text-left text-black/70">
+          <table className="min-w-full text-sm text-left">
+            <thead className="bg-slate-50 text-gray-500">
               <tr>
-                <th className="px-4 py-3">ID</th>
                 <th className="px-4 py-3">RUT</th>
                 <th className="px-4 py-3">Nombre</th>
                 <th className="px-4 py-3">Área</th>
@@ -173,27 +225,27 @@ export default function TrabajadoresClient() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {list.map((t) => (
-                <tr key={t.id} className="odd:bg-white even:bg-slate-50/30">
-                  <td className="px-4 py-3">{t.id}</td>
-                  <td className="px-4 py-3">{t.rut}</td>
-                  <td className="px-4 py-3">{t.nombre}</td>
-                  <td className="px-4 py-3">{t.area}</td>
-                  <td className="px-4 py-3 text-right">
-                    {/* (Mock) Acciones simplificadas */}
-                    <button className="mr-2 rounded-lg border px-3 py-1 hover:bg-black/5">Editar</button>
-                    <button className="rounded-lg border border-red-200 bg-red-50 px-3 py-1 text-red-700 hover:bg-red-100">Borrar</button>
-                  </td>
-                </tr>
-              ))}
-              {list.length === 0 && (
-                <tr><td colSpan="5" className="px-4 py-6 text-center text-black/60">Sin resultados</td></tr>
+              {loading ? (
+                <tr><td colSpan={4} className="px-4 py-8 text-center">Cargando...</td></tr>
+              ) : filteredList.length === 0 ? (
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">Sin datos.</td></tr>
+              ) : (
+                filteredList.map(t => (
+                  <tr key={t.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3 font-mono">{t.rut}</td>
+                    <td className="px-4 py-3">{t.nombre}</td>
+                    <td className="px-4 py-3">{t.area}</td>
+                    <td className="px-4 py-3 text-right space-x-2">
+                      <button onClick={() => openEdit(t)} className="text-blue-600 hover:underline">Editar</button>
+                      <button onClick={() => handleDelete(t.id)} className="text-red-600 hover:underline">Borrar</button>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
         </div>
       </div>
-
     </div>
   );
 }
