@@ -1,133 +1,138 @@
 // src/app/(protected)/asistencia/AsistenciaClient.jsx
 "use client";
+import { useState, useEffect, useMemo } from "react";
+import { toCsv, download } from "@/lib/csvUtils";
 
-import { useState, useMemo } from "react";
-// Importamos los mocks
-import { mockAsistencia, attendanceStatus } from "@/lib/MockData";
-
-// --- (AC 3) Funciones de exportación (copiadas de ReportsPage) ---
-function toCsv(rows) {
-  if (!rows.length) return "";
-  const headers = Object.keys(rows[0]);
-  const headLine = headers.join(",");
-  const body = rows
-    .map((r) =>
-      headers
-        .map((h) => {
-          const val = r[h] ?? "";
-          const str = String(val).replaceAll('"', '""');
-          return /[",\n]/.test(str) ? `"${str}"` : str;
-        })
-        .join(",")
-    )
-    .join("\n");
-  return `${headLine}\n${body}`;
-}
-
-function download(filename, text) {
-  const blob = new Blob([text], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.setAttribute("download", filename);
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-// --- Fin de funciones de exportación ---
-
+const ATTENDANCE_STATUS = ['Presente', 'Ausente', 'Justificado'];
 
 export default function AsistenciaClient() {
-  const [asistencia, setAsistencia] = useState(() => [...mockAsistencia]);
+  const [asistencia, setAsistencia] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
+
+  // Cargar datos reales
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/attendance"); // Trae los últimos 100
+      if (res.ok) {
+        setAsistencia(await res.json());
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  // Manejo de cambio de estado (PUT)
+  const handleStatusChange = async (id, newStatus) => {
+    // Optimistic UI update
+    const original = [...asistencia];
+    setAsistencia(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a));
+
+    try {
+      const res = await fetch(`/api/attendance/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (!res.ok) throw new Error("Falló la actualización");
+      
+    } catch (e) {
+      alert("Error al actualizar estado");
+      setAsistencia(original); // Revertir si falla
+    }
+  };
 
   const filteredList = useMemo(() => {
     const f = filter.trim().toLowerCase();
     if (!f) return asistencia;
     return asistencia.filter(a =>
-      a.workerName.toLowerCase().includes(f) ||
-      a.workerRut.toLowerCase().includes(f) ||
-      a.serviceId.toLowerCase().includes(f)
+      a.trabajador?.nombre.toLowerCase().includes(f) ||
+      a.trabajador?.rut.toLowerCase().includes(f) ||
+      a.servicio?.turno.toLowerCase().includes(f)
     );
   }, [asistencia, filter]);
 
-  // AC 2: Lógica para editar estado
-  const handleStatusChange = (asistenciaId, newStatus) => {
-    setAsistencia(prev =>
-      prev.map(item =>
-        item.id === asistenciaId ? { ...item, status: newStatus } : item
-      )
-    );
-    // (Aquí iría el fetch PUT al backend en el futuro)
-    console.log(`Cambiando ID ${asistenciaId} a estado ${newStatus}`);
-  };
-
-  // AC 3: Lógica de exportación
   const handleExport = () => {
-    const filename = `reporte_asistencia_${new Date().toISOString().split('T')[0]}.csv`;
-    download(filename, toCsv(filteredList));
+    // Aplanar datos para el CSV
+    const flatData = filteredList.map(a => ({
+      Fecha: new Date(a.servicio?.fecha).toLocaleDateString(),
+      Turno: a.servicio?.turno,
+      RUT: a.trabajador?.rut,
+      Nombre: a.trabajador?.nombre,
+      Estado: a.status,
+      CheckIn: a.checkIn ? new Date(a.checkIn).toLocaleTimeString() : "-"
+    }));
+    const filename = `asistencia_${new Date().toISOString().split('T')[0]}.csv`;
+    download(filename, toCsv(flatData));
   };
 
   return (
     <div className="mx-auto grid max-w-6xl gap-6 text-black">
-      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-black">Control de Asistencia</h1>
-        <button
-          onClick={handleExport}
-          className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
-        >
+        <button onClick={handleExport} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800">
           Exportar CSV
         </button>
       </div>
       
-      {/* Filtro y Tabla */}
-      <div className="rounded-2xl border bg-white shadow-[0_8px_24px_rgba(0,0,0,.06)]">
+      <div className="rounded-2xl border bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 p-4">
           <input
             onChange={(e) => setFilter(e.target.value)}
-            placeholder="Buscar por servicio, nombre o RUT…"
-            className="w-72 max-w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
+            placeholder="Buscar por nombre, RUT o turno..."
+            className="w-72 max-w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 outline-none"
           />
         </div>
         
-        {/* AC 1: Tabla de asistencia */}
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-slate-50 text-left text-black/70">
+          <table className="min-w-full text-sm text-left">
+            <thead className="bg-slate-50 text-gray-500">
               <tr>
-                <th className="px-4 py-3">Servicio</th>
-                <th className="px-4 py-3">RUT Trabajador</th>
-                <th className="px-4 py-3">Nombre</th>
+                <th className="px-4 py-3">Fecha / Turno</th>
+                <th className="px-4 py-3">Trabajador</th>
                 <th className="px-4 py-3">Check-In</th>
                 <th className="px-4 py-3">Estado (Editable)</th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-gray-100">
+              {loading && <tr><td colSpan="4" className="px-4 py-8 text-center text-gray-400">Cargando asistencia...</td></tr>}
+              {!loading && filteredList.length === 0 && (
+                <tr><td colSpan="4" className="px-4 py-8 text-center text-gray-400">No hay registros recientes.</td></tr>
+              )}
+
               {filteredList.map((item) => (
-                <tr key={item.id} className="odd:bg-white even:bg-slate-50/30">
-                  <td className="px-4 py-3">{item.serviceId}</td>
-                  <td className="px-4 py-3">{item.workerRut}</td>
-                  <td className="px-4 py-3">{item.workerName}</td>
-                  <td className="px-4 py-3">{item.checkIn || "---"}</td>
-                  
-                  {/* AC 2: Editar estado */}
+                <tr key={item.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{new Date(item.servicio?.fecha).toLocaleDateString()}</div>
+                    <div className="text-xs text-gray-500">{item.servicio?.turno}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{item.trabajador?.nombre}</div>
+                    <div className="text-xs text-gray-500">{item.trabajador?.rut}</div>
+                  </td>
+                  <td className="px-4 py-3 font-mono text-gray-600">
+                    {item.checkIn ? new Date(item.checkIn).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "---"}
+                  </td>
                   <td className="px-4 py-3">
                     <select
                       value={item.status}
                       onChange={(e) => handleStatusChange(item.id, e.target.value)}
-                      className="w-full max-w-[150px] rounded-lg border border-gray-300 px-3 py-1.5 
-                                 focus:border-blue-500 focus:ring-blue-500"
+                      className={`rounded-lg border px-2 py-1 text-xs font-medium focus:ring-2 focus:ring-blue-500 outline-none
+                        ${item.status === 'Presente' ? 'bg-green-50 text-green-700 border-green-200' : 
+                          item.status === 'Ausente' ? 'bg-red-50 text-red-700 border-red-200' : 
+                          'bg-yellow-50 text-yellow-700 border-yellow-200'}`}
                     >
-                      {attendanceStatus.map(s => <option key={s}>{s}</option>)}
+                      {ATTENDANCE_STATUS.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </td>
                 </tr>
               ))}
-              {filteredList.length === 0 && (
-                <tr><td colSpan="5" className="px-4 py-6 text-center text-black/60">Sin resultados</td></tr>
-              )}
             </tbody>
           </table>
         </div>

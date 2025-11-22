@@ -1,10 +1,11 @@
+// src/app/api/attendance/route.js
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { getApiSession } from "@/lib/api-auth";
 
 const prisma = new PrismaClient();
 
-// GET: Obtener asistencia actual de un servicio
+// GET: Consultar asistencia (Por servicio o general)
 export async function GET(request) {
   const { session, error } = await getApiSession(request);
   if (error) return error;
@@ -12,78 +13,71 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const serviceId = searchParams.get("serviceId");
 
-  if (!serviceId) return NextResponse.json([]);
-
   try {
+    const whereClause = {
+      empresaId: session.empresaId,
+      ...(serviceId && { servicioId: serviceId }) // Filtro opcional
+    };
+
     const attendance = await prisma.asistencia.findMany({
-      where: {
-        servicioId,
-        empresaId: session.empresaId
-      }
+      where: whereClause,
+      include: {
+        trabajador: true, // Traer nombre y RUT
+        servicio: {       // Traer info del servicio
+          select: { fecha: true, turno: true, paradas: true } 
+        }
+      },
+      orderBy: {
+        servicio: { fecha: 'desc' } // Más reciente primero
+      },
+      take: serviceId ? undefined : 100 // Si es general, limitar a 100
     });
+
     return NextResponse.json(attendance);
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
-// POST: Registrar pasajeros (Bulk Check-in)
+// POST: (Mantenlo igual que en B8)
 export async function POST(request) {
+  // ... (El código del POST que ya tenías, no lo borres)
   const { session, error } = await getApiSession(request);
   if (error) return error;
 
   try {
     const body = await request.json();
-    const { serviceId, passengers } = body; // passengers = [{ workerId, status }]
+    const { serviceId, passengers } = body;
 
-    if (!serviceId || !passengers || !Array.isArray(passengers)) {
-      return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
-    }
+    if (!serviceId || !passengers) return NextResponse.json({ error: "Datos incompletos" }, { status: 400 });
 
-    const results = [];
-
-    // Procesamos uno a uno para validar duplicados (Upsert logic)
-    for (const p of passengers) {
-      // Buscamos si ya existe registro para este trabajador en este servicio
-      const existing = await prisma.asistencia.findUnique({
+    const operations = passengers.map(p => 
+      prisma.asistencia.upsert({
         where: {
           servicioId_trabajadorId: {
             servicioId: serviceId,
             trabajadorId: p.workerId
           }
+        },
+        update: {
+          status: p.status,
+          checkIn: p.status === 'Presente' ? new Date() : null
+        },
+        create: {
+          servicioId: serviceId,
+          trabajadorId: p.workerId,
+          status: p.status,
+          checkIn: p.status === 'Presente' ? new Date() : null,
+          empresaId: session.empresaId
         }
-      });
+      })
+    );
 
-      if (existing) {
-        // Si existe, actualizamos el estado (ej. de 'Presente' a 'Ausente' o viceversa)
-        const updated = await prisma.asistencia.update({
-          where: { id: existing.id },
-          data: {
-            status: p.status,
-            // Solo actualizamos fecha si está marcando "Presente"
-            checkIn: p.status === 'Presente' ? new Date() : existing.checkIn
-          }
-        });
-        results.push(updated);
-      } else {
-        // Si no existe, creamos el registro
-        const created = await prisma.asistencia.create({
-          data: {
-            servicioId,
-            trabajadorId: p.workerId,
-            status: p.status,
-            checkIn: p.status === 'Presente' ? new Date() : null,
-            empresaId: session.empresaId
-          }
-        });
-        results.push(created);
-      }
-    }
-
-    return NextResponse.json({ success: true, count: results.length }, { status: 201 });
+    await prisma.$transaction(operations);
+    return NextResponse.json({ success: true });
 
   } catch (err) {
-    console.error("Error attendance:", err);
-    return NextResponse.json({ error: "Error al registrar asistencia" }, { status: 500 });
+    console.error("Error marcando asistencia:", err);
+    return NextResponse.json({ error: "Error al guardar asistencia" }, { status: 500 });
   }
 }
