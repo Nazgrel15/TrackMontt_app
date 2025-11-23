@@ -3,10 +3,8 @@
 import { useState } from "react";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("kevin@trackmontt.cl");
-  const [password, setPassword] = useState("1234");
-  const [error, setError] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [mfaToken, setMfaToken] = useState("");
 
   // Login Normal (Usuario + Password)
   async function onSubmit(e) {
@@ -14,10 +12,15 @@ export default function LoginPage() {
     setError(null);
     setIsLoading(true);
 
+    const payload = { email, password };
+    if (mfaRequired) {
+      payload.mfaToken = mfaToken;
+    }
+
     const res = await fetch("/api/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify(payload),
     });
 
     setIsLoading(false);
@@ -28,7 +31,12 @@ export default function LoginPage() {
       else window.location.href = "/dashboard";
     } else {
       const errData = await res.json();
-      setError(errData.error || "Error desconocido");
+      if (res.status === 403 && errData.mfaRequired) {
+        setMfaRequired(true);
+        setError(null);
+      } else {
+        setError(errData.error || "Error desconocido");
+      }
     }
   }
 
@@ -77,27 +85,52 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={onSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Correo electrónico</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm transition-all focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none"
-              placeholder="nombre@empresa.com"
-            />
-          </div>
+          {!mfaRequired ? (
+            <>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Correo electrónico</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm transition-all focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none"
+                  placeholder="nombre@empresa.com"
+                />
+              </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Contraseña</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm transition-all focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none"
-              placeholder="••••••••"
-            />
-          </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Contraseña</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm transition-all focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none"
+                  placeholder="••••••••"
+                />
+              </div>
+            </>
+          ) : (
+            <div className="animate-in fade-in slide-in-from-right-8 duration-300">
+              <div className="mb-4 text-center">
+                <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-bold text-slate-900">Código de Verificación</h3>
+                <p className="text-sm text-slate-500">Ingresa el código de 6 dígitos de tu app autenticadora.</p>
+              </div>
+              <input
+                type="text"
+                maxLength={6}
+                value={mfaToken}
+                onChange={(e) => setMfaToken(e.target.value.replace(/\D/g, ''))}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center text-2xl font-mono tracking-[0.5em] transition-all focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none"
+                placeholder="000000"
+                autoFocus
+              />
+            </div>
+          )}
 
           <button
             type="submit"
@@ -110,9 +143,9 @@ export default function LoginPage() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Iniciando sesión...
+                {mfaRequired ? "Verificando..." : "Iniciando sesión..."}
               </span>
-            ) : "Iniciar Sesión"}
+            ) : (mfaRequired ? "Verificar Código" : "Iniciar Sesión")}
           </button>
         </form>
 

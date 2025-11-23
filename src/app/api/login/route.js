@@ -16,7 +16,7 @@ export async function POST(request) {
     }
 
     // 1. Buscar al usuario en la BD
-    const user = await prisma.user.findFirst({ 
+    const user = await prisma.user.findFirst({
       where: { email: email.toLowerCase() },
     });
 
@@ -28,6 +28,24 @@ export async function POST(request) {
     const passwordMatch = await bcrypt.compare(password, user.hashedPassword);
     if (!passwordMatch) {
       return NextResponse.json({ error: "Credenciales inválidas" }, { status: 401 });
+    }
+
+    // ✨ MFA CHECK ✨
+    if (user.mfaEnabled) {
+      const { mfaToken } = await request.json(); // Leer token del body (si viene)
+
+      if (!mfaToken) {
+        // Si el usuario tiene MFA activo pero no mandó token, pedimos que lo mande
+        return NextResponse.json({ error: "MFA requerido", mfaRequired: true }, { status: 403 });
+      }
+
+      // Verificar el token
+      const { authenticator } = require("otplib"); // Import dinámico para evitar problemas si no se usa
+      const isValid = authenticator.verify({ token: mfaToken, secret: user.mfaSecret });
+
+      if (!isValid) {
+        return NextResponse.json({ error: "Código MFA inválido" }, { status: 401 });
+      }
     }
 
     // 3. Crear el JWT
@@ -56,18 +74,15 @@ export async function POST(request) {
     });
 
     // 6. REGISTRAR AUDITORÍA (Ticket B15)
-    // Construimos un objeto de sesión mínimo ya que el usuario aún no tiene la cookie
-    const sessionForAudit = { 
-        userId: user.id, 
-        empresaId: user.empresaId 
+    const sessionForAudit = {
+      userId: user.id,
+      empresaId: user.empresaId
     };
-    
-    // No usamos 'await' bloqueante para no retrasar el login al usuario,
-    // o usamos await si queremos asegurar que se guarde antes de responder.
+
     await logAudit({
-        session: sessionForAudit,
-        accion: "login:success",
-        detalles: "Inicio de sesión exitoso vía Web"
+      session: sessionForAudit,
+      accion: "login:success",
+      detalles: "Inicio de sesión exitoso vía Web"
     });
 
     return response;
@@ -75,7 +90,7 @@ export async function POST(request) {
   } catch (error) {
     console.error("Error en /api/login:", error);
     if (error.code) {
-       return NextResponse.json({ error: `Error de base de datos: ${error.code}` }, { status: 500 });
+      return NextResponse.json({ error: `Error de base de datos: ${error.code}` }, { status: 500 });
     }
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }

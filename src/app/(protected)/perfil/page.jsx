@@ -1,15 +1,23 @@
 // src/app/(protected)/perfil/page.jsx
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { decodeAuth } from "@/lib/auth";
+import { jwtVerify } from "jose";
 import PerfilClient from "./PerfilClient";
 
-// Esta función lee la cookie del lado del servidor
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
+
 async function getSession() {
   const cookieStore = await cookies();
-  const cookie = cookieStore.get("tm_auth")?.value;
-  const session = decodeAuth(cookie);
-  return session;
+  const token = cookieStore.get("tm_auth")?.value;
+
+  if (!token) return null;
+
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    return payload;
+  } catch (e) {
+    return null;
+  }
 }
 
 export default async function PerfilPage() {
