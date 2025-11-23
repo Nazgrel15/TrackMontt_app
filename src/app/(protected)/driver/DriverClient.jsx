@@ -11,12 +11,12 @@ export default function DriverClient() {
   const [activeService, setActiveService] = useState(null);
   const [isSending, setIsSending] = useState(false);
   const [logs, setLogs] = useState([]);
-  const [error, setError] = useState(null); 
-  
+  const [error, setError] = useState(null);
+
   const [workers, setWorkers] = useState([]);
   const [attendance, setAttendance] = useState({});
   const [search, setSearch] = useState("");
-  
+
   const intervalRef = useRef(null);
 
   // 2. Efecto único para marcar que ya estamos en el cliente
@@ -31,12 +31,12 @@ export default function DriverClient() {
     const fetchServices = async () => {
       try {
         const res = await fetch("/api/services");
-        
+
         // Manejo robusto de errores de API
         if (!res.ok) {
-           // Intentamos leer el error, si falla devolvemos objeto vacío
-           const errData = await res.json().catch(() => ({}));
-           throw new Error(errData.error || `Error ${res.status}`);
+          // Intentamos leer el error, si falla devolvemos objeto vacío
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `Error ${res.status}`);
         }
 
         const data = await res.json();
@@ -52,7 +52,7 @@ export default function DriverClient() {
             if (found) toggleService(found, true);
           }
         } else {
-           console.error("Formato inválido:", data);
+          console.error("Formato inválido:", data);
         }
       } catch (err) {
         console.error(err);
@@ -96,9 +96,9 @@ export default function DriverClient() {
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
-            const map = {};
-            data.forEach((r) => (map[r.trabajadorId] = r.status));
-            setAttendance(map);
+          const map = {};
+          data.forEach((r) => (map[r.trabajadorId] = r.status));
+          setAttendance(map);
         }
       }
     } catch (e) {
@@ -177,7 +177,7 @@ export default function DriverClient() {
 
   const handleCheckIn = async (workerId) => {
     if (!activeService) return;
-    
+
     const newStatus =
       attendance[workerId] === "Presente" ? "Ausente" : "Presente";
     setAttendance((prev) => ({ ...prev, [workerId]: newStatus }));
@@ -211,133 +211,172 @@ export default function DriverClient() {
   // Esto evita que el servidor renderice algo diferente al cliente.
   if (!mounted) {
     return (
-        <div className="p-10 text-center text-gray-500">
-            Cargando entorno...
-        </div>
+      <div className="p-10 text-center text-gray-500">
+        Cargando entorno...
+      </div>
     );
   }
 
   return (
-    <div className="mx-auto grid max-w-2xl gap-6 text-black pb-20">
-      <h1 className="text-xl font-semibold">Panel de Conductor</h1>
+    <div className="mx-auto max-w-md pb-24 text-slate-900">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-900">Mi Servicio</h1>
+        <p className="text-slate-500">Gestiona tu ruta y pasajeros</p>
+      </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative">
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
           <strong className="font-bold">Error: </strong>
           <span className="block sm:inline">{error}</span>
         </div>
       )}
 
       {!error && services.length === 0 && (
-        <p className="text-center text-gray-500 py-10">
-          No hay servicios asignados activos.
-        </p>
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
+          <svg className="mb-4 h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+          </svg>
+          <p className="text-slate-500">No tienes servicios asignados.</p>
+        </div>
       )}
 
-      {services.map((s) => {
-        const isActive = activeService?.id === s.id;
-        if (activeService && !isActive) return null;
+      <div className="space-y-6">
+        {services.map((s) => {
+          const isActive = activeService?.id === s.id;
+          if (activeService && !isActive) return null;
 
-        return (
-          <div
-            key={s.id}
-            className={`rounded-2xl border shadow-sm overflow-hidden ${
-              isActive ? "border-green-500" : "bg-white"
-            }`}
-          >
-            <div className={`p-5 ${isActive ? "bg-green-50" : ""}`}>
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="font-bold text-lg">
-                    {s.paradas[0]} → {s.paradas[s.paradas.length - 1]}
+          return (
+            <div
+              key={s.id}
+              className={`overflow-hidden rounded-3xl bg-white shadow-xl transition-all ${isActive ? "ring-4 ring-green-500 ring-offset-2" : "border border-slate-200"
+                }`}
+            >
+              {/* Header de la Tarjeta */}
+              <div className={`p-6 ${isActive ? "bg-green-50" : "bg-white"}`}>
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${isActive ? "bg-green-200 text-green-800" : "bg-slate-100 text-slate-600"
+                      }`}>
+                      {isActive ? "En Curso" : "Programado"}
+                    </span>
+                    {isActive && (
+                      <div className="flex items-center gap-2 text-xs font-mono text-green-700">
+                        <span className="relative flex h-3 w-3">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                        </span>
+                        GPS ACTIVO
+                      </div>
+                    )}
+                  </div>
+
+                  <h3 className="text-2xl font-bold text-slate-900 leading-tight mb-1">
+                    {s.paradas[0]}
                   </h3>
-                  <p className="text-sm text-gray-600">
-                    {s.bus?.patente} • {s.turno}
-                  </p>
+                  <div className="flex items-center justify-center my-2 text-slate-400">
+                    <svg className="h-6 w-6 rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                  </div>
+                  <h3 className="text-2xl font-bold text-slate-900 leading-tight">
+                    {s.paradas[s.paradas.length - 1]}
+                  </h3>
+
+                  <div className="mt-4 flex items-center gap-3 text-sm text-slate-600 bg-white/50 p-3 rounded-xl border border-slate-100">
+                    <svg className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                    </svg>
+                    <span className="font-medium">{s.bus?.patente || "Sin Patente"}</span>
+                    <span className="text-slate-300">|</span>
+                    <span>{s.turno}</span>
+                  </div>
                 </div>
 
                 <button
                   onClick={() => toggleService(s)}
-                  className={`px-4 py-2 rounded-lg font-semibold text-white shadow transition
-                  ${
-                    isActive
-                      ? "bg-red-600 hover:bg-red-700"
-                      : "bg-blue-600 hover:bg-blue-700"
-                  }`}
+                  className={`w-full rounded-2xl py-4 text-xl font-bold text-white shadow-lg transition-all active:scale-[0.98] ${isActive
+                      ? "bg-gradient-to-r from-red-500 to-red-600 shadow-red-500/30 hover:from-red-600 hover:to-red-700"
+                      : "bg-gradient-to-r from-blue-600 to-indigo-600 shadow-blue-500/30 hover:from-blue-700 hover:to-indigo-700"
+                    }`}
                 >
-                  {isActive ? "Finalizar" : "Iniciar"}
+                  {isActive ? "Finalizar Ruta" : "Iniciar Ruta"}
                 </button>
               </div>
 
+              {/* Lista de Pasajeros */}
               {isActive && (
-                <div className="text-xs font-mono text-green-700 flex items-center gap-2 mb-4">
-                  <span className="animate-pulse">●</span>{" "}
-                  {logs[0] || "Transmitiendo ubicación..."}
+                <div className="border-t border-slate-100 bg-slate-50 p-4">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h4 className="text-lg font-bold text-slate-900">
+                      Pasajeros
+                      <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 text-sm text-slate-700">
+                        {Object.values(attendance).filter((s) => s === "Presente").length}
+                      </span>
+                    </h4>
+                  </div>
+
+                  <div className="relative mb-4">
+                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input
+                      placeholder="Buscar pasajero..."
+                      className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-base shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    {filteredWorkers.map((w) => {
+                      const isPresent = attendance[w.id] === "Presente";
+
+                      return (
+                        <div
+                          key={w.id}
+                          onClick={() => handleCheckIn(w.id)}
+                          className={`flex cursor-pointer items-center justify-between rounded-xl border p-4 shadow-sm transition-all active:scale-[0.98] ${isPresent
+                              ? "border-green-200 bg-green-50"
+                              : "border-slate-200 bg-white"
+                            }`}
+                        >
+                          <div>
+                            <div className={`font-bold text-lg ${isPresent ? "text-green-900" : "text-slate-900"}`}>
+                              {w.nombre}
+                            </div>
+                            <div className={`text-sm ${isPresent ? "text-green-700" : "text-slate-500"}`}>
+                              {w.rut} • {w.area}
+                            </div>
+                          </div>
+
+                          <div
+                            className={`flex h-12 w-12 items-center justify-center rounded-full border-2 transition-all ${isPresent
+                                ? "border-green-500 bg-green-500 text-white shadow-lg shadow-green-500/30"
+                                : "border-slate-200 bg-slate-50 text-slate-300"
+                              }`}
+                          >
+                            {isPresent && (
+                              <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {filteredWorkers.length === 0 && (
+                      <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center">
+                        <p className="text-slate-500">No se encontraron pasajeros.</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
-
-            {isActive && (
-              <div className="border-t bg-white p-4">
-                <h4 className="font-semibold mb-3">
-                  Lista de Pasajeros (
-                  {
-                    Object.values(attendance).filter(
-                      (s) => s === "Presente"
-                    ).length
-                  }
-                  )
-                </h4>
-
-                <input
-                  placeholder="Buscar por nombre o RUT..."
-                  className="w-full p-2 border rounded-lg mb-3 text-sm"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-
-                <div className="max-h-60 overflow-y-auto divide-y">
-                  {filteredWorkers.map((w) => {
-                    const isPresent = attendance[w.id] === "Presente";
-
-                    return (
-                      <div
-                        key={w.id}
-                        className="flex items-center justify-between py-3 px-1"
-                      >
-                        <div>
-                          <div className="font-medium">{w.nombre}</div>
-                          <div className="text-xs text-gray-500">
-                            {w.rut} • {w.area}
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={() => handleCheckIn(w.id)}
-                          className={`h-10 w-10 rounded-full flex items-center justify-center text-lg border transition
-                          ${
-                            isPresent
-                              ? "bg-green-100 border-green-500 text-green-700"
-                              : "bg-gray-50 border-gray-300 text-gray-300 hover:border-gray-400"
-                          }`}
-                        >
-                          {isPresent ? "✓" : "+"}
-                        </button>
-                      </div>
-                    );
-                  })}
-
-                  {filteredWorkers.length === 0 && (
-                    <p className="text-center py-4 text-gray-400">
-                      No se encontraron trabajadores.
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -1,108 +1,84 @@
+// src/components/HeroSection.jsx
 "use client";
 import Image from "next/image";
-import dynamic from "next/dynamic";
-
-// Evita problemas de SSR con la lib
-const TypeAnimation = dynamic(
-  () => import("react-type-animation").then((m) => m.TypeAnimation),
-  { ssr: false }
-);
+import Link from "next/link";
+import DashboardPreview from "./DashboardPreview";
 
 const HeroSection = () => {
-  // El más largo de la lista para reservar ancho/alto del texto animado
-  const LONGEST = "Monitoreo en tiempo real";
-
   return (
-    <section className="relative isolate overflow-hidden bg-white">
-      {/* Fondo sutil con formas azules */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-blue-100/60 blur-3xl" />
-        <div className="absolute -bottom-20 -left-20 h-80 w-80 rounded-full bg-blue-50/70 blur-3xl" />
+    <section className="relative overflow-hidden bg-slate-50 pt-16 pb-32 lg:pt-32 lg:pb-40">
+
+      {/* Fondo con Patrón de Grid y Degradado */}
+      <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-blue-400 opacity-20 blur-[100px]"></div>
       </div>
 
-      <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-12 lg:px-8 relative z-10">
-        {/* Columna de texto */}
-        <div className="col-span-7 order-2 lg:order-1">
-          <span className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-medium text-black">
-            SaaS multi-tenant • Tiempo real • Acuicultura
+      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
+
+        {/* Badge Superior */}
+        <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50/50 px-3 py-1 text-sm font-medium text-blue-600 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
           </span>
+          Plataforma de Gestión de Transporte Corporativo
+        </div>
 
-          <h1 className="mt-4 mb-4 text-4xl font-extrabold leading-tight text-black sm:text-5xl lg:text-6xl">
-            <span className="block text-black">TrackMontt</span>
-            <span className="block">
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-blue-700">
-                Monitoreo y optimización
-              </span>{" "}
-              de traslados
-            </span>
-          </h1>
+        {/* Título Principal */}
+        <h1 className="mx-auto max-w-4xl text-5xl font-extrabold tracking-tight text-slate-900 sm:text-7xl mb-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-100">
+          Optimiza el transporte de tu personal con{" "}
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+            Inteligencia y Control
+          </span>
+        </h1>
 
-          {/* Texto animado: claims de valor */}
-          <div className="relative inline-block w-[28ch] align-top">
-            <span className="invisible">{LONGEST}</span>
-            <span className="absolute inset-0 bg-clip-text text-lg font-semibold text-blue-700">
-              <TypeAnimation
-                sequence={[
-                  "Monitoreo en tiempo real", 1200,
-                  "Optimización de rutas", 1200,
-                  "Control de asistencia", 1200,
-                  "KPIs y SLA operativos", 1200,
-                ]}
-                wrapper="span"
-                speed={70}
-                repeat={Infinity}
-              />
-            </span>
+        {/* Subtítulo */}
+        <p className="mx-auto max-w-2xl text-lg text-slate-600 mb-10 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
+          TrackMontt centraliza la operación de flotas, control de asistencia y planificación de rutas para la industria acuícola. Toma decisiones basadas en datos en tiempo real.
+        </p>
+
+        {/* Botones CTA */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300 mb-12">
+          <Link
+            href="/login"
+            className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-8 py-4 text-base font-bold text-white shadow-lg shadow-indigo-500/30 transition-all hover:bg-slate-800 hover:scale-105 hover:shadow-indigo-500/50"
+          >
+            Ingresar a la Plataforma
+          </Link>
+          <Link
+            href="#features"
+            className="group inline-flex items-center justify-center gap-2 rounded-2xl px-8 py-4 text-base font-bold text-slate-600 transition-all hover:text-blue-600 hover:bg-blue-50"
+          >
+            Saber más
+            <svg className="h-5 w-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+            </svg>
+          </Link>
+        </div>
+
+        {/* Elemento Visual Abstracto (Glassmorphism) */}
+        
+          <div className="relative rounded-3xl border border-slate-200 bg-white/50 backdrop-blur-xl shadow-2xl overflow-hidden p-2 lg:p-4">
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-50"></div>
+            <div className="rounded-2xl shadow-sm border border-slate-100 bg-slate-50 overflow-hidden">
+                <DashboardPreview />
+            </div>
           </div>
 
-          <p className="mt-4 text-base text-black sm:text-lg lg:text-xl">
-            Plataforma web para empresas salmoneras: planifica servicios, visualiza la
-            flota en vivo, controla asistencia y mide desempeño entre{" "}
-            <strong>centros de cultivo</strong> y <strong>plantas de proceso</strong>.
-          </p>
 
-          {/* CTA */}
-          <div className="mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
-            <a
-              href="#contacto"
-              className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-blue-800 px-6 py-3 text-white shadow-sm transition hover:opacity-95"
-            >
-              Solicitar demo
-            </a>
-            <a
-              href="#caracteristicas"
-              className="inline-flex items-center justify-center rounded-xl border border-black/10 bg-white px-6 py-3 text-black hover:bg-black/5"
-            >
-              Ver características
-            </a>
-          </div>
-
-          {/* Badges de confianza */}
-          <div className="mt-6 flex flex-wrap items-center gap-3 text-xs text-black/70">
-            <span className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1">WebSocket en vivo</span>
-            <span className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1">Reportes y KPIs</span>
-            <span className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1">Privacidad y RLS por empresa</span>
+        {/* Social Proof / Logos */}
+        <div className="mt-20 border-t border-slate-200 pt-10">
+          <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-6">Confían en nosotros</p>
+          <div className="flex flex-wrap justify-center items-center gap-8 opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
+            {/* Placeholders de logos */}
+            <div className="h-8 w-32 bg-slate-300 rounded animate-pulse"></div>
+            <div className="h-8 w-32 bg-slate-300 rounded animate-pulse delay-100"></div>
+            <div className="h-8 w-32 bg-slate-300 rounded animate-pulse delay-200"></div>
+            <div className="h-8 w-32 bg-slate-300 rounded animate-pulse delay-300"></div>
           </div>
         </div>
 
-        {/* Columna visual */}
-        <div className="col-span-5 order-1 lg:order-2">
-          <div className="relative mx-auto h-[260px] w-[260px] rounded-3xl bg-white shadow-[0_8px_24px_rgba(0,0,0,.08)] ring-1 ring-black/5 sm:h-[320px] sm:w-[320px] lg:h-[400px] lg:w-[400px]">
-            {/* “Anillo” decorativo azul */}
-            <div className="absolute -inset-4 -z-10 rounded-[2rem] bg-gradient-to-br from-blue-200 to-blue-100 blur-2xl" />
-            <Image
-              src="/images/icons/logoTrackMontt.png" // reemplaza por tu imagen (flota/acuicultura)
-              alt="Monitoreo de flota en tiempo real para acuicultura"
-              className="absolute left-1/2 top-1/2 h-auto w-[78%] -translate-x-1/2 -translate-y-1/2 select-none"
-              width={600}
-              height={600}
-              priority
-            />
-          </div>
-          <p className="mt-3 text-center text-xs text-black/50">
-            Visualiza buses, paradas y ETAs entre centros de cultivo y plantas.
-          </p>
-        </div>
       </div>
     </section>
   );
