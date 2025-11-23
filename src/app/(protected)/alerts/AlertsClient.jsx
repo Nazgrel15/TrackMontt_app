@@ -1,6 +1,7 @@
 // src/app/(protected)/alerts/AlertsClient.jsx
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useAlerts } from "@/context/AlertContext";
 
 // --- Estilos ---
 const severityConfig = {
@@ -139,25 +140,12 @@ function AlertDetailModal({ alert, onClose }) {
 
 /* ======== Componente Principal ======== */
 export default function AlertsClient() {
-  const [alerts, setAlerts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { alerts, loading, refreshAlerts } = useAlerts();
   const [filterType, setFilterType] = useState("todos");
   const [checking, setChecking] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState(null);
 
-  const loadAlerts = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/alerts");
-      if (res.ok) setAlerts(await res.json());
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { loadAlerts(); }, []);
+  // Removed local loadAlerts and useEffect since context handles it
 
   const handleRunCheck = async () => {
     setChecking(true);
@@ -166,7 +154,7 @@ export default function AlertsClient() {
       const data = await res.json();
       if (res.ok && data.generadas > 0) {
         alert(`⚠️ Se detectaron ${data.generadas} nuevas alertas.`);
-        loadAlerts();
+        refreshAlerts();
       } else {
         alert("Sistema normal. No se detectaron nuevas anomalías.");
       }
@@ -223,8 +211,8 @@ export default function AlertsClient() {
             key={f.id}
             onClick={() => setFilterType(f.id)}
             className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${filterType === f.id
-                ? "bg-slate-800 text-white shadow-lg shadow-slate-800/20"
-                : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+              ? "bg-slate-800 text-white shadow-lg shadow-slate-800/20"
+              : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50 hover:border-slate-300"
               }`}
           >
             {f.label}

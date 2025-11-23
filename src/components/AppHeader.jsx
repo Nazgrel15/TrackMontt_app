@@ -2,9 +2,11 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAlerts } from "@/context/AlertContext";
 
 export default function AppHeader({ role, userName }) {
   const pathname = usePathname();
+  const { unreadCount } = useAlerts();
 
   // Inferir título de la página basado en la ruta
   const getPageTitle = (path) => {
@@ -35,12 +37,15 @@ export default function AppHeader({ role, userName }) {
         <div className="flex items-center gap-6">
 
           {/* Notificaciones */}
-          <button className="relative rounded-full p-2 text-slate-400 hover:bg-slate-50 hover:text-blue-600 transition-colors">
-            <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
+          {/* Notificaciones */}
+          <Link href="/alerts" className="relative rounded-full p-2 text-slate-400 hover:bg-slate-50 hover:text-blue-600 transition-colors">
+            {unreadCount > 0 && (
+              <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white animate-pulse"></span>
+            )}
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
             </svg>
-          </button>
+          </Link>
 
           <div className="h-8 w-px bg-slate-200"></div>
 
