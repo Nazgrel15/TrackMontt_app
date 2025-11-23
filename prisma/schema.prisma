@@ -79,6 +79,10 @@ model User {
   name           String
   hashedPassword String
   
+  // MFA Fields
+  mfaSecret      String?
+  mfaEnabled     Boolean @default(false)
+  
   // CAMBIO: Usar Enum en lugar de String
   role           Rol    @default(Supervisor)
 
