@@ -72,27 +72,27 @@ export const auditActions = {
 
 
 export const mockSaludKPIs = [
-  { 
-    id: "uptime",    
-    label: "Uptime (API)",           
-    value: "99.98%", 
-    trend: "24h",  
+  {
+    id: "uptime",
+    label: "Uptime (API)",
+    value: "99.98%",
+    trend: "24h",
     hint: "Disponibilidad del servicio últimas 24h",
     status: "ok" // 'ok', 'warn', 'error'
   },
-  { 
-    id: "latency",   
-    label: "Latencia API (p95)",   
-    value: "120 ms", 
-    trend: "< 700ms", 
+  {
+    id: "latency",
+    label: "Latencia API (p95)",
+    value: "120 ms",
+    trend: "< 700ms",
     hint: "Percentil 95 de respuesta del API",
     status: "ok"
   },
-  { 
-    id: "errors",   
-    label: "Tasa de Errores (API)",      
-    value: "0.02%", 
-    trend: "última hora", 
+  {
+    id: "errors",
+    label: "Tasa de Errores (API)",
+    value: "0.02%",
+    trend: "última hora",
     hint: "Porcentaje de errores 5xx",
     status: "ok"
   },
@@ -102,4 +102,43 @@ export const mockErroresRecientes = [
   { id: 'E-001', timestamp: '2025-11-12T14:32:00Z', code: 500, service: 'api/login', message: 'Database connection timeout' },
   { id: 'E-002', timestamp: '2025-11-12T14:28:00Z', code: 404, service: 'api/fleet/B-999', message: 'Bus not found' },
   { id: 'E-003', timestamp: '2025-11-12T14:25:00Z', code: 502, service: 'api/ws-gateway', message: 'Bad Gateway' },
+];
+
+export const mockSystemServices = [
+  {
+    id: 'database',
+    name: 'Base de Datos',
+    description: 'PostgreSQL Main Cluster',
+    status: 'online', // 'online' | 'offline' | 'degraded'
+    latency: 45,
+    uptime: 99.98,
+    icon: 'database'
+  },
+  {
+    id: 'api',
+    name: 'API Externa',
+    description: 'External Integration Services',
+    status: 'online',
+    latency: 120,
+    uptime: 99.95,
+    icon: 'cloud'
+  },
+  {
+    id: 'gps',
+    name: 'GPS Tracking',
+    description: 'Real-time Geolocation Service',
+    status: 'online',
+    latency: 89,
+    uptime: 99.92,
+    icon: 'satellite'
+  },
+  {
+    id: 'webhooks',
+    name: 'Webhooks',
+    description: 'Event Delivery System',
+    status: 'online',
+    latency: 156,
+    uptime: 99.87,
+    icon: 'webhook'
+  }
 ];

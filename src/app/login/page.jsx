@@ -3,6 +3,10 @@
 import { useState } from "react";
 
 export default function LoginPage() {
+  const [email, setEmail] = useState("kevin@trackmontt.cl");
+  const [password, setPassword] = useState("1234");
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [mfaRequired, setMfaRequired] = useState(false);
   const [mfaToken, setMfaToken] = useState("");
 
