@@ -22,6 +22,7 @@ export default function DriverClient() {
 
   // 2. Efecto único para marcar que ya estamos en el cliente
   useEffect(() => {
+    console.log("DriverClient montado - Versión Nueva");
     setMounted(true);
   }, []);
 
