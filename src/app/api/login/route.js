@@ -7,9 +7,12 @@ import { logAudit } from "@/lib/audit"; // 👈 Importamos el helper de auditor�
 
 const prisma = new PrismaClient();
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request) {
   try {
-    const { email, password } = await request.json();
+    const body = await request.json();
+    const { email, password, mfaToken } = body;
 
     if (!email || !password) {
       return NextResponse.json({ error: "Email y contraseña son requeridos" }, { status: 400 });
@@ -32,7 +35,7 @@ export async function POST(request) {
 
     // ✨ MFA CHECK ✨
     if (user.mfaEnabled) {
-      const { mfaToken } = await request.json(); // Leer token del body (si viene)
+      // const { mfaToken } = await request.json(); // ❌ REMOVIDO: El body ya se leyó arriba
 
       if (!mfaToken) {
         // Si el usuario tiene MFA activo pero no mandó token, pedimos que lo mande
