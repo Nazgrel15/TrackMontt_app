@@ -5,6 +5,7 @@ import { useEffect, useState, useRef } from "react";
 export default function DriverClient() {
   // 1. Control de montaje para evitar errores de Hidratación y Build
   const [mounted, setMounted] = useState(false);
+  const [retryCount, setRetryCount] = useState(0); // Para reintentar carga
 
   // Estados
   const [services, setServices] = useState([]);
@@ -77,7 +78,7 @@ export default function DriverClient() {
     fetchServices();
     fetchWorkers();
 
-  }, [mounted]);
+  }, [mounted, retryCount]); // Dependencia agregada: retryCount
 
   // Cleanup al desmontar
   useEffect(() => {
@@ -225,9 +226,17 @@ export default function DriverClient() {
       </div>
 
       {error && (
-        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
-          <strong className="font-bold">Error: </strong>
-          <span className="block sm:inline">{error}</span>
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700 flex flex-col items-center gap-3">
+          <div className="text-center">
+            <strong className="font-bold block mb-1">Error de Conexión</strong>
+            <span className="block text-sm">{error}</span>
+          </div>
+          <button
+            onClick={() => setRetryCount(c => c + 1)}
+            className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg text-sm font-bold transition-colors"
+          >
+            Reintentar
+          </button>
         </div>
       )}
 
@@ -295,8 +304,8 @@ export default function DriverClient() {
                 <button
                   onClick={() => toggleService(s)}
                   className={`w-full rounded-2xl py-4 text-xl font-bold text-white shadow-lg transition-all active:scale-[0.98] ${isActive
-                      ? "bg-gradient-to-r from-red-500 to-red-600 shadow-red-500/30 hover:from-red-600 hover:to-red-700"
-                      : "bg-gradient-to-r from-blue-600 to-indigo-600 shadow-blue-500/30 hover:from-blue-700 hover:to-indigo-700"
+                    ? "bg-gradient-to-r from-red-500 to-red-600 shadow-red-500/30 hover:from-red-600 hover:to-red-700"
+                    : "bg-gradient-to-r from-blue-600 to-indigo-600 shadow-blue-500/30 hover:from-blue-700 hover:to-indigo-700"
                     }`}
                 >
                   {isActive ? "Finalizar Ruta" : "Iniciar Ruta"}
@@ -336,8 +345,8 @@ export default function DriverClient() {
                           key={w.id}
                           onClick={() => handleCheckIn(w.id)}
                           className={`flex cursor-pointer items-center justify-between rounded-xl border p-4 shadow-sm transition-all active:scale-[0.98] ${isPresent
-                              ? "border-green-200 bg-green-50"
-                              : "border-slate-200 bg-white"
+                            ? "border-green-200 bg-green-50"
+                            : "border-slate-200 bg-white"
                             }`}
                         >
                           <div>
@@ -351,8 +360,8 @@ export default function DriverClient() {
 
                           <div
                             className={`flex h-12 w-12 items-center justify-center rounded-full border-2 transition-all ${isPresent
-                                ? "border-green-500 bg-green-500 text-white shadow-lg shadow-green-500/30"
-                                : "border-slate-200 bg-slate-50 text-slate-300"
+                              ? "border-green-500 bg-green-500 text-white shadow-lg shadow-green-500/30"
+                              : "border-slate-200 bg-slate-50 text-slate-300"
                               }`}
                           >
                             {isPresent && (
