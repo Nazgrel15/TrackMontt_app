@@ -42,8 +42,12 @@ function ServiceForm({ initial, buses, choferes, stopsList, onCancel, onSubmit }
     setErrors(err);
     if (Object.keys(err).length) return;
 
+    // 🔧 FIX: Convertir fecha a ISO con mediodía para evitar problema de timezone
+    const [year, month, day] = fecha.split('-');
+    const fechaISO = new Date(year, month - 1, day, 12, 0, 0).toISOString();
+
     onSubmit({
-      fecha,
+      fecha: fechaISO,
       turno,
       busId,
       choferId,
