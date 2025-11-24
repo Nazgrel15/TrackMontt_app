@@ -2,7 +2,7 @@
 // - Network-First para páginas HTML (siempre obtiene la última versión)
 // - Cache-First para assets estáticos (JS, CSS, imágenes)
 
-const CACHE_NAME = 'trackmontt-cache-v3'; // ⬆️ Incrementado para forzar actualización y limpiar APIs cacheadas
+const CACHE_NAME = 'trackmontt-cache-v4'; // ⬆️ Incrementado - Fix logout error 405
 const STATIC_ASSETS = [
   '/manifest.json'
 ];
@@ -44,6 +44,11 @@ self.addEventListener('fetch', (event) => {
 
   // Solo interceptar peticiones del mismo origen
   if (url.origin !== location.origin) {
+    return;
+  }
+
+  // ⚠️ No interceptar /api/logout (causa error 405)
+  if (url.pathname === '/api/logout') {
     return;
   }
 
