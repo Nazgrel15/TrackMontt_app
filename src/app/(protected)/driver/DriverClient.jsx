@@ -92,15 +92,22 @@ export default function DriverClient() {
 
   const loadAttendance = async (serviceId) => {
     try {
-      const res = await fetch(`/api/attendance?serviceId=${serviceId}`, {
+      const res = await fetch(`/api/attendance?servicioId=${serviceId}`, {
         cache: "no-store",
       });
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
           const map = {};
-          data.forEach((r) => (map[r.trabajadorId] = r.status));
+          const serviceWorkers = [];
+          data.forEach((r) => {
+            map[r.trabajadorId] = r.status;
+            if (r.trabajador) {
+              serviceWorkers.push(r.trabajador);
+            }
+          });
           setAttendance(map);
+          setWorkers(serviceWorkers); // Mostrar solo trabajadores del servicio
         }
       }
     } catch (e) {

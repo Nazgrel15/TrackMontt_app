@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 /* ======== Componente de Formulario Moderno ======== */
-function ServiceForm({ initial, buses, choferes, stopsList, onCancel, onSubmit }) {
+function ServiceForm({ initial, buses, choferes, stopsList, workers, onCancel, onSubmit }) {
   const [fecha, setFecha] = useState(initial?.fecha ? new Date(initial.fecha).toISOString().split('T')[0] : "");
   const [turno, setTurno] = useState(initial?.turno ?? "Mañana");
   const [busId, setBusId] = useState(initial?.busId ?? "");
@@ -11,6 +11,8 @@ function ServiceForm({ initial, buses, choferes, stopsList, onCancel, onSubmit }
 
   const [selectedStops, setSelectedStops] = useState(initial?.paradas || []);
   const [stopToAdd, setStopToAdd] = useState("");
+  const [selectedWorkers, setSelectedWorkers] = useState(initial?.trabajadorIds || []);
+  const [workerSearch, setWorkerSearch] = useState("");
   const [errors, setErrors] = useState({});
 
   function addStop() {
@@ -51,7 +53,8 @@ function ServiceForm({ initial, buses, choferes, stopsList, onCancel, onSubmit }
       turno,
       busId,
       choferId,
-      paradas: selectedStops
+      paradas: selectedStops,
+      trabajadorIds: selectedWorkers
     });
   }
 
@@ -165,6 +168,97 @@ function ServiceForm({ initial, buses, choferes, stopsList, onCancel, onSubmit }
           ))}
         </div>
         {errors.paradas && <p className="text-xs text-red-500 mt-3 font-medium text-center">{errors.paradas}</p>}
+      </div>
+
+      {/* Trabajadores Asignados */}
+      <div className="pt-4 border-t border-slate-100">
+        <label className="block text-sm font-bold text-slate-700 mb-4">Trabajadores Asignados ({selectedWorkers.length})</label>
+
+        {/* Search */}
+        <div className="relative mb-4">
+          <input
+            type="text"
+            placeholder="Buscar trabajador..."
+            value={workerSearch}
+            onChange={(e) => setWorkerSearch(e.target.value)}
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 py-3 text-sm text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+          />
+          <svg className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+        </div>
+
+        {/* Selected Workers Chips */}
+        {selectedWorkers.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
+            {selectedWorkers.map(wId => {
+              const worker = workers.find(w => w.id === wId);
+              if (!worker) return null;
+              return (
+                <div key={wId} className="inline-flex items-center gap-2 bg-white pl-3 pr-2 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+                  <span className="text-xs font-medium text-slate-700">{worker.nombre}</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">{worker.area}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedWorkers(prev => prev.filter(id => id !== wId))}
+                    className="rounded-full p-0.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                  >
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Workers List Grouped by Area */}
+        <div className="max-h-96 overflow-y-auto space-y-3 bg-slate-50 rounded-xl p-4 border border-slate-200">
+          {Object.entries(
+            workers
+              .filter(w => {
+                const search = workerSearch.toLowerCase();
+                return w.nombre.toLowerCase().includes(search) || w.rut.toLowerCase().includes(search) || w.area.toLowerCase().includes(search);
+              })
+              .reduce((acc, worker) => {
+                if (!acc[worker.area]) acc[worker.area] = [];
+                acc[worker.area].push(worker);
+                return acc;
+              }, {})
+          ).map(([area, areaWorkers]) => (
+            <div key={area} className="bg-white rounded-lg p-3 shadow-sm border border-slate-100">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider">{area}</h4>
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{areaWorkers.length} trabajadores</span>
+              </div>
+              <div className="space-y-1">
+                {areaWorkers.map(worker => (
+                  <label
+                    key={worker.id}
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors group"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedWorkers.includes(worker.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedWorkers(prev => [...prev, worker.id]);
+                        } else {
+                          setSelectedWorkers(prev => prev.filter(id => id !== worker.id));
+                        }
+                      }}
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-900 truncate">{worker.nombre}</p>
+                      <p className="text-xs font-mono text-slate-500">{worker.rut}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+          {Object.keys(workers.reduce((acc, w) => ({ ...acc, [w.area]: true }), {})).length === 0 && (
+            <p className="text-center text-slate-400 py-8">No hay trabajadores disponibles</p>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center justify-end gap-3 pt-6 border-t border-slate-100">
@@ -305,6 +399,7 @@ export default function PlanningPage() {
   const [buses, setBuses] = useState([]);
   const [choferes, setChoferes] = useState([]);
   const [stopsList, setStopsList] = useState([]);
+  const [workers, setWorkers] = useState([]);
   const [services, setServices] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -314,17 +409,19 @@ export default function PlanningPage() {
   const loadAll = async () => {
     setIsLoading(true);
     try {
-      const [resBuses, resDrivers, resStops, resServices] = await Promise.all([
+      const [resBuses, resDrivers, resStops, resServices, resWorkers] = await Promise.all([
         fetch("/api/buses"),
         fetch("/api/drivers"),
         fetch("/api/stops"),
-        fetch("/api/services")
+        fetch("/api/services"),
+        fetch("/api/workers")
       ]);
 
       if (resBuses.ok) setBuses(await resBuses.json());
       if (resDrivers.ok) setChoferes(await resDrivers.json());
       if (resStops.ok) setStopsList(await resStops.json());
       if (resServices.ok) setServices(await resServices.json());
+      if (resWorkers.ok) setWorkers(await resWorkers.json());
 
     } catch (e) {
       console.error("Error cargando datos:", e);
@@ -449,6 +546,7 @@ export default function PlanningPage() {
           buses={buses}
           choferes={choferes}
           stopsList={stopsList}
+          workers={workers}
           onCancel={() => setIsModalOpen(false)}
           onSubmit={handleCreate}
         />

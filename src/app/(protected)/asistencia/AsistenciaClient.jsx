@@ -9,6 +9,10 @@ export default function AsistenciaClient() {
   const [asistencia, setAsistencia] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   // Cargar datos reales
   const loadData = async () => {
@@ -50,13 +54,44 @@ export default function AsistenciaClient() {
 
   const filteredList = useMemo(() => {
     const f = filter.trim().toLowerCase();
-    if (!f) return asistencia;
-    return asistencia.filter(a =>
+
+    // Filtrar por mes seleccionado
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const monthFiltered = asistencia.filter(a => {
+      const serviceDate = new Date(a.servicio?.fecha);
+      return serviceDate.getFullYear() === year && serviceDate.getMonth() + 1 === month;
+    });
+
+    // Luego filtrar por búsqueda
+    if (!f) return monthFiltered;
+    return monthFiltered.filter(a =>
       a.trabajador?.nombre.toLowerCase().includes(f) ||
       a.trabajador?.rut.toLowerCase().includes(f) ||
+      a.trabajador?.area.toLowerCase().includes(f) ||
       a.servicio?.turno.toLowerCase().includes(f)
     );
-  }, [asistencia, filter]);
+  }, [asistencia, filter, selectedMonth]);
+
+  // Agrupar por área
+  const groupedByArea = useMemo(() => {
+    const groups = {};
+    filteredList.forEach(a => {
+      const area = a.trabajador?.area || 'Sin Área';
+      if (!groups[area]) {
+        groups[area] = {
+          total: 0,
+          presente: 0,
+          ausente: 0,
+          justificado: 0,
+          items: []
+        };
+      }
+      groups[area].total++;
+      groups[area][a.status.toLowerCase()]++;
+      groups[area].items.push(a);
+    });
+    return groups;
+  }, [filteredList]);
 
   const handleExport = () => {
     // Aplanar datos para el CSV
@@ -89,14 +124,109 @@ export default function AsistenciaClient() {
         </button>
       </div>
 
-      {/* Buscador */}
-      <div className="relative">
-        <input
-          onChange={(e) => setFilter(e.target.value)}
-          placeholder="Buscar por nombre, RUT o turno..."
-          className="w-full md:w-96 rounded-xl border-0 bg-white pl-11 pr-4 py-3 text-sm text-slate-900 shadow-sm ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500 transition-all"
-        />
-        <svg className="absolute left-3.5 top-3.5 h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+      {/* Filtros */}
+      <div className="flex flex-col md:flex-row gap-4">
+        {/* Buscador */}
+        <div className="flex-1">
+          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">
+            Buscar
+          </label>
+          <div className="relative">
+            <input
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="Nombre, RUT, área o turno..."
+              className="w-full rounded-xl border-0 bg-white pl-11 pr-4 py-3 text-sm text-slate-900 shadow-sm ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500 transition-all"
+            />
+            <svg className="absolute left-3.5 top-3.5 h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+          </div>
+        </div>
+
+        {/* Selector de Mes - Modern SaaS Design */}
+        <div className="w-full md:w-72">
+          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">
+            Período
+          </label>
+          <div className="relative">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10">
+              <svg className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="w-full appearance-none rounded-xl border-0 bg-gradient-to-br from-white to-slate-50 pl-11 pr-10 py-3 text-sm font-medium text-slate-900 shadow-md ring-1 ring-slate-200 hover:ring-blue-300 focus:ring-2 focus:ring-blue-500 focus:from-blue-50 focus:to-white transition-all cursor-pointer"
+            >
+              {(() => {
+                const months = [];
+                const today = new Date();
+                // Generar últimos 12 meses
+                for (let i = 0; i < 12; i++) {
+                  const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                  const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                  const label = d.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+                  const isCurrentMonth = i === 0;
+                  const displayLabel = isCurrentMonth
+                    ? `${label.charAt(0).toUpperCase() + label.slice(1)} (Actual)`
+                    : label.charAt(0).toUpperCase() + label.slice(1);
+                  months.push(<option key={value} value={value}>{displayLabel}</option>);
+                }
+                return months;
+              })()}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3">
+              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg p-1.5">
+                <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Estadísticas por Área */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Object.entries(groupedByArea).map(([area, stats]) => (
+          <div key={area} className="rounded-2xl border border-slate-100 bg-white shadow-sm p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-900">{area}</h3>
+              <span className="text-sm font-medium px-3 py-1 rounded-full bg-slate-100 text-slate-600">
+                {stats.total} trabajadores
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="text-center p-3 rounded-xl bg-emerald-50 border border-emerald-100">
+                <div className="text-2xl font-bold text-emerald-700">{stats.presente}</div>
+                <div className="text-xs font-medium text-emerald-600 mt-1">Presente</div>
+              </div>
+              <div className="text-center p-3 rounded-xl bg-red-50 border border-red-100">
+                <div className="text-2xl font-bold text-red-700">{stats.ausente}</div>
+                <div className="text-xs font-medium text-red-600 mt-1">Ausente</div>
+              </div>
+              <div className="text-center p-3 rounded-xl bg-amber-50 border border-amber-100">
+                <div className="text-2xl font-bold text-amber-700">{stats.justificado}</div>
+                <div className="text-xs font-medium text-amber-600 mt-1">Justificado</div>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-slate-100">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">Tasa de asistencia</span>
+                <span className="font-bold text-slate-900">
+                  {stats.total ? Math.round((stats.presente / stats.total) * 100) : 0}%
+                </span>
+              </div>
+              <div className="mt-2 h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 transition-all"
+                  style={{ width: `${stats.total ? (stats.presente / stats.total) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Tabla Desktop */}

@@ -12,23 +12,23 @@ export async function GET(request) {
 
   try {
     // 1. Filtro base: Siempre por la empresa del usuario (Tenant)
-    const whereClause = { 
-      empresaId: session.empresaId 
+    const whereClause = {
+      empresaId: session.empresaId
     };
 
     // 2. LOGICA DE PRIVACIDAD: Si es Chofer, filtramos por SU perfil
     if (session.role === 'Chofer') {
       const choferPerfil = await prisma.chofer.findFirst({
-        where: { 
+        where: {
           userId: session.userId,
-          empresaId: session.empresaId 
+          empresaId: session.empresaId
         }
       });
 
       if (choferPerfil) {
         whereClause.choferId = choferPerfil.id;
       } else {
-        return NextResponse.json([]); 
+        return NextResponse.json([]);
       }
     }
 
@@ -57,7 +57,7 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { fecha, turno, paradas, busId, choferId } = body;
+    const { fecha, turno, paradas, busId, choferId, trabajadorIds = [] } = body;
 
     // Validaciones básicas
     if (!fecha || !turno || !busId || !choferId || !paradas?.length) {
@@ -77,6 +77,21 @@ export async function POST(request) {
       },
       include: { bus: true, chofer: true }
     });
+
+    // ✨ CREAR REGISTROS DE ASISTENCIA AUTOMÁTICAMENTE ✨
+    if (trabajadorIds.length > 0) {
+      const asistenciasData = trabajadorIds.map(trabajadorId => ({
+        empresaId: session.empresaId,
+        servicioId: newService.id,
+        trabajadorId: trabajadorId,
+        status: 'Ausente', // Estado inicial
+      }));
+
+      await prisma.asistencia.createMany({
+        data: asistenciasData,
+        skipDuplicates: true // Evitar errores si ya existe
+      });
+    }
 
     // ✨ DISPARAR WEBHOOK (Ticket B19) ✨
     // Esto avisa a sistemas externos que se creó un servicio
