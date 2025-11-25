@@ -228,8 +228,8 @@ model Alerta {
   empresaId  String
   empresa    Empresa  @relation(fields: [empresaId], references: [id])
   
-  servicioId String
-  servicio   Servicio @relation(fields: [servicioId], references: [id], onDelete: Cascade)
+  servicioId String?
+  servicio   Servicio? @relation(fields: [servicioId], references: [id], onDelete: Cascade)
   
   @@index([servicioId, estado])
 }
@@ -260,8 +260,8 @@ model Incidente {
   empresaId  String
   empresa    Empresa  @relation(fields: [empresaId], references: [id])
   
-  servicioId String
-  servicio   Servicio @relation(fields: [servicioId], references: [id], onDelete: Cascade)
+  servicioId String?
+  servicio   Servicio? @relation(fields: [servicioId], references: [id], onDelete: Cascade)
   
   choferId   String
   chofer     Chofer   @relation(fields: [choferId], references: [id])

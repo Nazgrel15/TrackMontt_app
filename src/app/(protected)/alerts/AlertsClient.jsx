@@ -15,7 +15,27 @@ const severityConfig = {
       </svg>
     )
   },
+  Alta: {
+    border: "border-red-500",
+    bgIcon: "bg-red-100",
+    textIcon: "text-red-600",
+    icon: (
+      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      </svg>
+    )
+  },
   amarillo: {
+    border: "border-yellow-500",
+    bgIcon: "bg-yellow-100",
+    textIcon: "text-yellow-600",
+    icon: (
+      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    )
+  },
+  Media: {
     border: "border-yellow-500",
     bgIcon: "bg-yellow-100",
     textIcon: "text-yellow-600",
@@ -35,6 +55,16 @@ const severityConfig = {
       </svg>
     )
   },
+  Baja: {
+    border: "border-emerald-500",
+    bgIcon: "bg-emerald-100",
+    textIcon: "text-emerald-600",
+    icon: (
+      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    )
+  },
 };
 
 /* ======== Componente Modal de Detalle ======== */
@@ -45,10 +75,10 @@ function AlertDetailModal({ alert, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-lg rounded-3xl bg-white p-8 shadow-2xl ring-1 ring-black/5 animate-in zoom-in-95 duration-200">
+      <div className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-3xl bg-white shadow-2xl ring-1 ring-black/5 animate-in zoom-in-95 duration-200">
 
         {/* Header del Modal */}
-        <div className="flex items-start justify-between mb-6">
+        <div className="flex items-start justify-between p-8 pb-6 flex-shrink-0">
           <div className="flex items-center gap-4">
             <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${severityConfig[alert.severidad].bgIcon} ${severityConfig[alert.severidad].textIcon}`}>
               {severityConfig[alert.severidad].icon}
@@ -63,8 +93,8 @@ function AlertDetailModal({ alert, onClose }) {
           </button>
         </div>
 
-        {/* Cuerpo del Modal */}
-        <div className="space-y-6">
+        {/* Cuerpo del Modal - Scrollable */}
+        <div className="px-8 pb-6 overflow-y-auto flex-1 space-y-6">
 
           <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Mensaje del Sistema</p>
@@ -115,10 +145,26 @@ function AlertDetailModal({ alert, onClose }) {
             <p className="text-slate-400 italic text-center py-4">Sin información de servicio asociada.</p>
           )}
 
+          {/* Mostrar foto del incidente si existe */}
+          {alert.tipo?.startsWith('Incidente:') && alert.incidente?.urlFoto && (
+            <div>
+              <h4 className="font-bold text-slate-900 flex items-center gap-2 mb-4">
+                <span className="text-xl">📸</span> Foto del Incidente
+              </h4>
+              <div className="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden p-4">
+                <img
+                  src={alert.incidente.urlFoto}
+                  alt="Foto del incidente"
+                  className="w-full h-auto max-h-[400px] object-contain rounded-xl bg-white shadow-sm"
+                />
+              </div>
+            </div>
+          )}
+
         </div>
 
         {/* Footer / Acciones */}
-        <div className="mt-8 pt-6 border-t border-slate-100 flex justify-end gap-3">
+        <div className="p-8 pt-6 border-t border-slate-100 flex justify-end gap-3 flex-shrink-0">
           <button
             onClick={onClose}
             className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors"
@@ -167,6 +213,9 @@ export default function AlertsClient() {
 
   const filteredAlerts = useMemo(() => {
     if (filterType === "todos") return alerts;
+    if (filterType === "Incidente") {
+      return alerts.filter((a) => a.tipo?.startsWith('Incidente:'));
+    }
     return alerts.filter((a) => a.tipo === filterType);
   }, [alerts, filterType]);
 
@@ -175,6 +224,7 @@ export default function AlertsClient() {
     { id: "retraso", label: "Retrasos" },
     { id: "desvio", label: "Desvíos" },
     { id: "parada_omitida", label: "Paradas Omitidas" },
+    { id: "Incidente", label: "Incidentes" },
   ];
 
   return (
