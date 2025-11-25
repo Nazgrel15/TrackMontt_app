@@ -48,16 +48,17 @@ export default function AppHeader({ role, userName }) {
         {/* Derecha: Acciones y Perfil */}
         <div className="flex items-center gap-6">
 
-          {/* Notificaciones */}
-          {/* Notificaciones */}
-          <Link href="/alerts" className="relative rounded-full p-2 text-slate-400 hover:bg-slate-50 hover:text-blue-600 transition-colors">
-            {unreadCount > 0 && (
-              <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white animate-pulse"></span>
-            )}
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-          </Link>
+          {/* Notificaciones - Oculto para Choferes */}
+          {role !== 'Chofer' && (
+            <Link href="/alerts" className="relative rounded-full p-2 text-slate-400 hover:bg-slate-50 hover:text-blue-600 transition-colors">
+              {unreadCount > 0 && (
+                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white animate-pulse"></span>
+              )}
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+            </Link>
+          )}
 
           <div className="h-8 w-px bg-slate-200"></div>
 
@@ -68,9 +69,13 @@ export default function AppHeader({ role, userName }) {
               <span className="text-xs font-medium text-slate-500 mt-1">{role === 'admin' ? 'Administrador' : role || 'Invitado'}</span>
             </div>
 
-            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-md ring-2 ring-white">
+            <Link
+              href="/perfil"
+              className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-md ring-2 ring-white hover:ring-4 hover:ring-blue-200 transition-all cursor-pointer"
+              title="Ir a Mi Perfil"
+            >
               {userName ? userName.charAt(0).toUpperCase() : "U"}
-            </div>
+            </Link>
 
             <button
               onClick={handleLogout}

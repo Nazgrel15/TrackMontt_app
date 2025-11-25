@@ -9,7 +9,8 @@ import {
   Users,
   HelpCircle,
   Mic,
-  ChevronLeft
+  Camera,
+  X
 } from "lucide-react";
 import Link from "next/link";
 
@@ -21,30 +22,86 @@ const INCIDENT_TYPES = [
   { id: "other", label: "Otro", icon: HelpCircle },
 ];
 
-export default function IncidenteClient() {
+export default function IncidenteClient({ servicioId }) {
   const [selectedType, setSelectedType] = useState(null);
   const [note, setNote] = useState("");
+  const [photo, setPhoto] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState(null);
 
-  function handleSubmit(e) {
+  function handlePhotoChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validar tipo y tamaño
+    const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      setError('Solo se permiten imágenes JPEG, PNG o WebP');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('La imagen no debe superar 5MB');
+      return;
+    }
+
+    setPhoto(file);
+    setError(null);
+
+    // Crear preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPhotoPreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function removePhoto() {
+    setPhoto(null);
+    setPhotoPreview(null);
+  }
+
+  async function handleSubmit(e) {
     e.preventDefault();
     if (!selectedType) return;
 
     setIsSubmitting(true);
+    setError(null);
 
-    // Simulación de envío
-    setTimeout(() => {
-      console.log("INCIDENTE REPORTADO:", {
-        tipo: selectedType,
-        note,
-        timestamp: new Date().toISOString(),
+    try {
+      // Crear FormData para enviar archivo
+      const formData = new FormData();
+      formData.append('tipo', selectedType);
+      formData.append('nota', note);
+      formData.append('servicioId', servicioId || 'temp-service-id'); // TODO: Obtener del contexto real
+      if (photo) {
+        formData.append('foto', photo);
+      }
+
+      const response = await fetch('/api/incidents', {
+        method: 'POST',
+        body: formData,
       });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al enviar el reporte');
+      }
+
+      // Éxito
       setSuccess(true);
-      setIsSubmitting(false);
       setNote("");
       setSelectedType(null);
-    }, 1000);
+      setPhoto(null);
+      setPhotoPreview(null);
+    } catch (err) {
+      console.error('Error al reportar incidente:', err);
+      setError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   if (success) {
@@ -127,16 +184,51 @@ export default function IncidenteClient() {
               rows={4}
               className="w-full rounded-2xl border-0 bg-white p-4 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-red-500"
             />
-            {/* Botón de Audio Simulado */}
-            <button
-              type="button"
-              className="absolute bottom-3 right-3 rounded-full bg-slate-100 p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
-              title="Grabar audio (Próximamente)"
-            >
-              <Mic size={20} />
-            </button>
           </div>
         </div>
+
+        {/* Upload de Foto */}
+        <div className="mb-8 space-y-4">
+          <label className="block text-sm font-semibold text-slate-700">
+            Foto del Incidente (Opcional)
+          </label>
+
+          {photoPreview ? (
+            <div className="relative rounded-2xl overflow-hidden bg-white shadow-sm ring-1 ring-slate-200">
+              <img
+                src={photoPreview}
+                alt="Preview"
+                className="w-full h-64 object-cover"
+              />
+              <button
+                type="button"
+                onClick={removePhoto}
+                className="absolute top-3 right-3 rounded-full bg-red-500 p-2 text-white shadow-lg hover:bg-red-600 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+          ) : (
+            <label className="flex flex-col items-center justify-center w-full h-48 rounded-2xl border-2 border-dashed border-slate-300 bg-white hover:bg-slate-50 cursor-pointer transition-colors">
+              <Camera size={40} className="text-slate-400 mb-2" />
+              <span className="text-sm font-medium text-slate-600">Toca para adjuntar foto</span>
+              <span className="text-xs text-slate-400 mt-1">JPEG, PNG o WebP (máx 5MB)</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoChange}
+                className="hidden"
+              />
+            </label>
+          )}
+        </div>
+
+        {/* Mensaje de Error */}
+        {error && (
+          <div className="mb-6 rounded-xl bg-red-50 p-4 border border-red-200">
+            <p className="text-sm text-red-800">{error}</p>
+          </div>
+        )}
 
         {/* Botones de Acción */}
         <div className="fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white p-4 pb-8 md:static md:border-0 md:bg-transparent md:p-0">
