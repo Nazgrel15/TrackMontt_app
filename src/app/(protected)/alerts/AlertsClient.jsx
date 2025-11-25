@@ -67,11 +67,26 @@ const severityConfig = {
   },
 };
 
+// Helper para obtener config de severidad con fallback
+const getSeverityConfig = (severidad) => {
+  return severityConfig[severidad] || {
+    border: "border-slate-500",
+    bgIcon: "bg-slate-100",
+    textIcon: "text-slate-600",
+    icon: (
+      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    )
+  };
+};
+
 /* ======== Componente Modal de Detalle ======== */
 function AlertDetailModal({ alert, onClose }) {
   if (!alert) return null;
 
   const { servicio } = alert;
+  const severityStyle = getSeverityConfig(alert.severidad);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-in fade-in duration-200">
@@ -80,8 +95,8 @@ function AlertDetailModal({ alert, onClose }) {
         {/* Header del Modal */}
         <div className="flex items-start justify-between p-8 pb-6 flex-shrink-0">
           <div className="flex items-center gap-4">
-            <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${severityConfig[alert.severidad].bgIcon} ${severityConfig[alert.severidad].textIcon}`}>
-              {severityConfig[alert.severidad].icon}
+            <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${severityStyle.bgIcon} ${severityStyle.textIcon}`}>
+              {severityStyle.icon}
             </div>
             <div>
               <h3 className="text-xl font-bold text-slate-900">Detalle de Alerta</h3>
@@ -287,48 +302,51 @@ export default function AlertsClient() {
           </div>
         )}
 
-        {filteredAlerts.map((alert) => (
-          <div
-            key={alert.id}
-            onClick={() => setSelectedAlert(alert)}
-            className={`group relative bg-white rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border-l-[6px] cursor-pointer ${severityConfig[alert.severidad].border}`}
-          >
-            <div className="flex items-start gap-5">
-              {/* Icono */}
-              <div className={`flex-shrink-0 h-12 w-12 rounded-2xl flex items-center justify-center ${severityConfig[alert.severidad].bgIcon} ${severityConfig[alert.severidad].textIcon}`}>
-                {severityConfig[alert.severidad].icon}
-              </div>
-
-              {/* Contenido */}
-              <div className="flex-1 min-w-0 pt-1">
-                <div className="flex items-center gap-3 mb-1">
-                  <h3 className="text-base font-bold text-slate-800 capitalize">
-                    {alert.tipo.replace('_', ' ')}
-                  </h3>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500">
-                    {alert.estado}
-                  </span>
+        {filteredAlerts.map((alert) => {
+          const severityStyle = getSeverityConfig(alert.severidad);
+          return (
+            <div
+              key={alert.id}
+              onClick={() => setSelectedAlert(alert)}
+              className={`group relative bg-white rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border-l-[6px] cursor-pointer ${severityStyle.border}`}
+            >
+              <div className="flex items-start gap-5">
+                {/* Icono */}
+                <div className={`flex-shrink-0 h-12 w-12 rounded-2xl flex items-center justify-center ${severityStyle.bgIcon} ${severityStyle.textIcon}`}>
+                  {severityStyle.icon}
                 </div>
-                <p className="text-slate-500 text-sm leading-relaxed truncate pr-8">
-                  {alert.mensaje}
-                </p>
+
+                {/* Contenido */}
+                <div className="flex-1 min-w-0 pt-1">
+                  <div className="flex items-center gap-3 mb-1">
+                    <h3 className="text-base font-bold text-slate-800 capitalize">
+                      {alert.tipo.replace('_', ' ')}
+                    </h3>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500">
+                      {alert.estado}
+                    </span>
+                  </div>
+                  <p className="text-slate-500 text-sm leading-relaxed truncate pr-8">
+                    {alert.mensaje}
+                  </p>
+                </div>
+
+                {/* Hora */}
+                <div className="absolute top-6 right-6 font-mono text-xs font-medium text-slate-400">
+                  {new Date(alert.timestamp).toLocaleTimeString("es-CL", { hour: '2-digit', minute: '2-digit' })}
+                </div>
               </div>
 
-              {/* Hora */}
-              <div className="absolute top-6 right-6 font-mono text-xs font-medium text-slate-400">
-                {new Date(alert.timestamp).toLocaleTimeString("es-CL", { hour: '2-digit', minute: '2-digit' })}
+              {/* Acción Hover */}
+              <div className="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <span className="flex items-center gap-1 text-sm font-bold text-blue-600">
+                  Ver Detalle
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                </span>
               </div>
             </div>
-
-            {/* Acción Hover */}
-            <div className="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              <span className="flex items-center gap-1 text-sm font-bold text-blue-600">
-                Ver Detalle
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-              </span>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

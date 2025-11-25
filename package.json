@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "npx prisma generate && next build --turbopack",
+    "dev": "next dev --turbo",
+    "build": "npx prisma generate && next build",
     "start": "next start",
     "lint": "eslint"
   },
