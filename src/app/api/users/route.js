@@ -1,10 +1,9 @@
 // src/app/api/users/route.js
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { getApiSession } from "@/lib/api-auth"; // Nuestro helper
 import bcrypt from "bcryptjs";
 
-const prisma = new PrismaClient();
 const ROLES_PERMITIDOS = ["Supervisor", "Chofer"];
 
 // ... (La función GET no cambia y está bien) ...

@@ -1,9 +1,8 @@
 // src/app/api/buses/route.js
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { getApiSession } from "@/lib/api-auth"; // Nuestro helper de autenticación
 
-const prisma = new PrismaClient();
 
 /**
  * GET /api/buses

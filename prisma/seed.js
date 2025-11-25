@@ -69,6 +69,26 @@ async function main() {
   });
   console.log("Perfil Chofer creado y enlazado.");
 
+  // 6. Crear un Bus
+  const bus = await prisma.bus.create({
+    data: {
+      patente: "KLRR-99",
+      capacidad: 40,
+      proveedor: "Transportes del Sur",
+      empresaId: empresa.id,
+    }
+  });
+  console.log("Bus creado.");
+
+  // 7. Crear un par de Paradas en Puerto Montt
+  await prisma.parada.createMany({
+    data: [
+      { nombre: "Plaza de Armas", lat: -41.4717, lng: -72.9396, empresaId: empresa.id },
+      { nombre: "Terminal de Buses", lat: -41.4685, lng: -72.9255, empresaId: empresa.id },
+    ]
+  });
+  console.log("Paradas creadas.");
+  
   console.log("Seed completado correctamente.");
 }
 

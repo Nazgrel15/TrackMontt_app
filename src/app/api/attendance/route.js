@@ -1,9 +1,8 @@
 // src/app/api/attendance/route.js
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { getApiSession } from "@/lib/api-auth";
 
-const prisma = new PrismaClient();
 
 // GET: Consultar asistencia (Por servicio o general)
 export async function GET(request) {

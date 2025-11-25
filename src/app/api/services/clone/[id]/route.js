@@ -1,9 +1,8 @@
 // src/app/api/services/clone/[id]/route.js
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { getApiSession } from "@/lib/api-auth";
 
-const prisma = new PrismaClient();
 
 export async function POST(request, { params }) {
   const { session, error } = await getApiSession(request);

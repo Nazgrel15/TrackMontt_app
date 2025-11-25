@@ -1,10 +1,9 @@
 // src/app/api/integrations/sso/route.js
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { getApiSession } from "@/lib/api-auth";
 import { logAudit } from "@/lib/audit";
 
-const prisma = new PrismaClient();
 
 // GET: Ver configuración actual
 export async function GET(request) {

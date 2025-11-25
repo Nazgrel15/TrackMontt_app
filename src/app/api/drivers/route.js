@@ -1,10 +1,9 @@
 // src/app/api/drivers/route.js
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { getApiSession } from "@/lib/api-auth";
 import bcrypt from "bcryptjs";
 
-const prisma = new PrismaClient();
 
 // 1. Método GET (Faltaba o estaba incompleto)
 export async function GET(request) {

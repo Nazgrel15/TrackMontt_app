@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { getApiSession } from "@/lib/api-auth";
 
-const prisma = new PrismaClient();
 
 export async function POST(request) {
   // Choferes y Supervisores pueden enviar datos (o solo choferes, según tu regla)

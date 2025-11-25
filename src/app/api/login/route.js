@@ -1,11 +1,10 @@
 // src/app/api/login/route.js
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { logAudit } from "@/lib/audit"; // 👈 Importamos el helper de auditoría
 
-const prisma = new PrismaClient();
 
 export const dynamic = 'force-dynamic';
 

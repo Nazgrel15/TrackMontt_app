@@ -1,10 +1,9 @@
 // src/app/api/settings/route.js
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { getApiSession } from "@/lib/api-auth";
 import { logAudit } from "@/lib/audit"; // 👈 Importamos el helper de auditoría
 
-const prisma = new PrismaClient();
 
 export async function GET(request) {
   const { session, error } = await getApiSession(request, { requireAdmin: true });

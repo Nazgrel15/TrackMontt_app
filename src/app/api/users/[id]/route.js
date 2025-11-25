@@ -1,9 +1,8 @@
 // src/app/api/users/[id]/route.js
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { getApiSession } from "@/lib/api-auth";
 
-const prisma = new PrismaClient();
 const ROLES_PERMITIDOS = ["Supervisor", "Chofer", "Administrador"];
 
 export async function GET(request, { params }) {

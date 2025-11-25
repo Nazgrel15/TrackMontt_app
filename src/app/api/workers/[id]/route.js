@@ -1,9 +1,8 @@
 // src/app/api/workers/[id]/route.js
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { getApiSession } from "@/lib/api-auth";
 
-const prisma = new PrismaClient();
 
 // PUT: Actualizar trabajador
 export async function PUT(request, { params }) {

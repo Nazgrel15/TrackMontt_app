@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCached, setCache } from "@/lib/cache";
 
 export async function GET() {
+    // Verificar cache primero (5 segundos TTL)
+    const cached = getCached('health-data', 5000);
+    if (cached) {
+        return NextResponse.json(cached);
+    }
+
     const start = performance.now();
     const healthData = {
         status: "online",
@@ -36,13 +43,16 @@ export async function GET() {
 
     // 2. Diagnóstico API Interna
     // Si estamos ejecutando este código, la API está respondiendo.
-    const apiLatency = Math.round(performance.now() - start);
+    // Restamos el tiempo que tomó la DB para obtener la latencia "pura" de la API
+    const totalTime = performance.now() - start;
+    const apiOverhead = Math.max(1, Math.round(totalTime - dbLatency));
+
     healthData.services.push({
         id: "api",
         name: "API Interna",
         description: "Next.js API Routes",
         status: "online",
-        latency: apiLatency,
+        latency: apiOverhead,
         uptime: 99.95, // Simulado
         icon: "cloud"
     });
@@ -97,10 +107,10 @@ export async function GET() {
         {
             id: "latency",
             label: "Latencia API",
-            value: `${apiLatency} ms`,
+            value: `${apiOverhead} ms`,
             trend: "actual",
             hint: "Tiempo de respuesta actual",
-            status: apiLatency < 800 ? "ok" : "warn"
+            status: apiOverhead < 800 ? "ok" : "warn"
         },
         {
             id: "errors",
@@ -132,5 +142,10 @@ export async function GET() {
         console.error("Error fetching alerts:", error);
     }
 
-    return NextResponse.json({ ...healthData, recentErrors });
+    const response = { ...healthData, recentErrors };
+
+    // Guardar en cache antes de retornar
+    setCache('health-data', response);
+
+    return NextResponse.json(response);
 }

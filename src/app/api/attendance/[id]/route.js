@@ -1,9 +1,8 @@
 // src/app/api/attendance/[id]/route.js
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { getApiSession } from "@/lib/api-auth";
 
-const prisma = new PrismaClient();
 
 // PUT: Ajustar estado de asistencia
 export async function PUT(request, { params }) {

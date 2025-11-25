@@ -1,10 +1,9 @@
 // src/app/api/auth/sso/callback/route.js
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import jwt from "jsonwebtoken";
 import { logAudit } from "@/lib/audit";
 
-const prisma = new PrismaClient();
 
 export async function POST(request) {
   try {

@@ -1,9 +1,8 @@
 // src/app/api/workers/route.js
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { getApiSession } from "@/lib/api-auth";
 
-const prisma = new PrismaClient();
 
 // GET: Listar trabajadores de la empresa
 export async function GET(request) {

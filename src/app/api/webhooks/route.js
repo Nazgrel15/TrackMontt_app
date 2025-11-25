@@ -1,9 +1,8 @@
 // src/app/api/webhooks/route.js
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { getApiSession } from "@/lib/api-auth";
 
-const prisma = new PrismaClient();
 
 // GET: Listar webhooks configurados
 export async function GET(request) {

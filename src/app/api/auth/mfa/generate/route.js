@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { authenticator } from "otplib";
 import qrcode from "qrcode";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
-const prisma = new PrismaClient();
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
 export async function GET(request) {

@@ -1,10 +1,9 @@
 // src/app/api/services/route.js
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { getApiSession } from "@/lib/api-auth";
 import { triggerWebhooks } from "@/lib/webhooks"; // 👈 Importante para Ticket B19
 
-const prisma = new PrismaClient();
 
 // GET: Listar servicios (con filtro de privacidad para choferes)
 export async function GET(request) {
