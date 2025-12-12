@@ -10,9 +10,9 @@ async function main() {
   // 1. Crear Empresa
   // Usamos 'upsert' o 'create' simple. Como la DB está vacía, create está bien.
   const empresa = await prisma.empresa.create({
-    data: { 
-      nombre: "Transportes del Sur", 
-      toleranciaRetraso: 15 
+    data: {
+      nombre: "Transportes del Sur",
+      toleranciaRetraso: 15
     },
   });
   console.log("Empresa creada.");
@@ -80,15 +80,90 @@ async function main() {
   });
   console.log("Bus creado.");
 
-  // 7. Crear un par de Paradas en Puerto Montt
+  // 7. Crear Paradas en Puerto Montt
   await prisma.parada.createMany({
     data: [
-      { nombre: "Plaza de Armas", lat: -41.4717, lng: -72.9396, empresaId: empresa.id },
-      { nombre: "Terminal de Buses", lat: -41.4685, lng: -72.9255, empresaId: empresa.id },
+      // --- DESTINOS (Plantas y Centros de Cultivo) ---
+      {
+        nombre: "Planta Salmonera - Chinquihue Km 13",
+        lat: -41.4855,
+        lng: -72.9842,
+        empresaId: empresa.id
+      },
+      {
+        nombre: "Centro de Cultivo - Sector Tenglo",
+        lat: -41.4920,
+        lng: -72.9650,
+        empresaId: empresa.id
+      },
+
+      // --- PARADEROS (Recogida de Trabajadores) ---
+      {
+        nombre: "Hospital Base Puerto Montt",
+        lat: -41.4534,
+        lng: -72.9265,
+        empresaId: empresa.id
+      },
+      {
+        nombre: "Mall Paseo Costanera (Centro)",
+        lat: -41.4718,
+        lng: -72.9365,
+        empresaId: empresa.id
+      },
+      {
+        nombre: "Mercado Angelmó",
+        lat: -41.4785,
+        lng: -72.9542,
+        empresaId: empresa.id
+      },
+      {
+        nombre: "Valle Volcanes - Supermercado",
+        lat: -41.4552,
+        lng: -72.9125,
+        empresaId: empresa.id
+      },
+      {
+        nombre: "Sector Mirasol - Padre Harter",
+        lat: -41.4650,
+        lng: -72.9680,
+        empresaId: empresa.id
+      },
+      {
+        nombre: "Población Pichi Pelluco",
+        lat: -41.4750,
+        lng: -72.9200,
+        empresaId: empresa.id
+      },
+      {
+        nombre: "Universidad San Sebastián (Pelluco)",
+        lat: -41.4835,
+        lng: -72.9030,
+        empresaId: empresa.id
+      },
+      {
+        nombre: "Rotonda Presidente Ibáñez",
+        lat: -41.4580,
+        lng: -72.9350,
+        empresaId: empresa.id
+      },
+
+      // --- PARADAS ORIGINALES ---
+      {
+        nombre: "Plaza de Armas",
+        lat: -41.4717,
+        lng: -72.9396,
+        empresaId: empresa.id
+      },
+      {
+        nombre: "Terminal de Buses",
+        lat: -41.4685,
+        lng: -72.9255,
+        empresaId: empresa.id
+      },
     ]
   });
-  console.log("Paradas creadas.");
-  
+  console.log("Paradas creadas (12 en total).");
+
   console.log("Seed completado correctamente.");
 }
 

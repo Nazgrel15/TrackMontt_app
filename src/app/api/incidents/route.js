@@ -57,12 +57,9 @@ export async function POST(request) {
             urlFoto,
             empresaId: session.empresaId,
             choferId: chofer.id,
+            // SIEMPRE incluir servicioId, aunque sea null
+            servicioId: (servicioId && servicioId !== 'no-service') ? servicioId : null,
         };
-
-        // Solo agregar servicioId si existe y no es 'no-service'
-        if (servicioId && servicioId !== 'no-service') {
-            incidenteData.servicioId = servicioId;
-        }
 
         const incidente = await prisma.incidente.create({
             data: incidenteData,

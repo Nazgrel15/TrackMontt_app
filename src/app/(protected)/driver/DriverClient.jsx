@@ -100,10 +100,14 @@ export default function DriverClient() {
         if (Array.isArray(data)) {
           const map = {};
           const serviceWorkers = [];
+          const addedWorkerIds = new Set(); // Para evitar duplicados
+
           data.forEach((r) => {
             map[r.trabajadorId] = r.status;
-            if (r.trabajador) {
+            // Solo agregar el trabajador si no ha sido agregado antes
+            if (r.trabajador && !addedWorkerIds.has(r.trabajador.id)) {
               serviceWorkers.push(r.trabajador);
+              addedWorkerIds.add(r.trabajador.id);
             }
           });
           setAttendance(map);
@@ -111,7 +115,7 @@ export default function DriverClient() {
         }
       }
     } catch (e) {
-      console.error(e);
+      console.error("Error loading attendance:", e);
     }
   };
 
