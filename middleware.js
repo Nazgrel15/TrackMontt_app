@@ -7,16 +7,16 @@ const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
 // Tu lista de rutas protegidas
 const PROTECTED = [
-  "/dashboard", 
-  "/planning", 
-  "/map", 
-  "/reports", 
-  "/admin", 
-  "/driver", 
-  "/perfil", 
-  "/notificaciones", 
-  "/asistencia", 
-  "/auditoria", 
+  "/dashboard",
+  "/planning",
+  "/map",
+  "/reports",
+  "/admin",
+  "/driver",
+  "/perfil",
+  "/notificaciones",
+  "/asistencia",
+  "/auditoria",
   "/salud"
 ];
 
@@ -31,6 +31,9 @@ export async function middleware(request) { // 👈 La función es ASÍNCRONA
   const { pathname } = request.nextUrl;
   const token = request.cookies.get(AUTH_COOKIE)?.value;
 
+  // DEBUG: Log para identificar el problema
+  console.log(`[MIDDLEWARE] pathname: ${pathname}, hasToken: ${!!token}`);
+
   // 1. Rutas públicas y assets -> dejar pasar
   const isPublic =
     pathname === "/" ||
@@ -38,8 +41,8 @@ export async function middleware(request) { // 👈 La función es ASÍNCRONA
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
     pathname.startsWith("/images") ||
-    pathname.startsWith("/sw.js") || 
-    pathname.startsWith("/manifest.json"); 
+    pathname.startsWith("/sw.js") ||
+    pathname.startsWith("/manifest.json");
 
   if (isPublic) {
     // Si el usuario YA tiene un token e intenta ir a /login, lo redirigimos
@@ -81,10 +84,10 @@ export async function middleware(request) { // 👈 La función es ASÍNCRONA
         return NextResponse.redirect(new URL("/dashboard", request.url));
       }
       if (pathname.startsWith("/auditoria") && role !== "Administrador") {
-         return NextResponse.redirect(new URL("/dashboard", request.url));
+        return NextResponse.redirect(new URL("/dashboard", request.url));
       }
-       if (pathname.startsWith("/salud") && role !== "Administrador") {
-         return NextResponse.redirect(new URL("/dashboard", request.url));
+      if (pathname.startsWith("/salud") && role !== "Administrador") {
+        return NextResponse.redirect(new URL("/dashboard", request.url));
       }
 
       // Si todo está bien, dejamos que continúe

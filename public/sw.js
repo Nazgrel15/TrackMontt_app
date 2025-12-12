@@ -2,7 +2,7 @@
 // - Network-First para páginas HTML (siempre obtiene la última versión)
 // - Cache-First para assets estáticos (JS, CSS, imágenes)
 
-const CACHE_NAME = 'trackmontt-cache-v4'; // ⬆️ Incrementado - Fix logout error 405
+const CACHE_NAME = 'trackmontt-cache-v5'; // ⬆️ Incrementado - Fix React version mismatch from SW cache
 const STATIC_ASSETS = [
   '/manifest.json'
 ];
